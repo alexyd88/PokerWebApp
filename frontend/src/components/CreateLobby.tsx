@@ -3,12 +3,11 @@ import { createLobby } from "../api/lobbies";
 import { useNavigate } from "react-router-dom";
 
 export function CreateLobby() {
-  const [title] = useState<string>("title123");
-  const [description] = useState<string>("description14");
+  const [players] = useState<string[]>(["me"]);
 
   const navigate = useNavigate();
   const handleSubmit = () => {
-    createLobby({ title, description }).then((result) => {
+    createLobby({ players }).then((result) => {
       if (result.success) {
         console.log("success");
         navigate("/lobby/" + result.data._id);

@@ -1,12 +1,10 @@
 import { InferSchemaType, Schema, model } from "mongoose";
 
 const lobbySchema = new Schema({
-  title: { type: String, required: true },
-  description: { type: String },
-  isChecked: { type: Boolean, default: false },
-  dateCreated: { type: Date, required: true },
+  players: { type: Array<{ name: string }>, required: true },
+  date: { type: Date, required: false },
 });
 
-type Lobby = InferSchemaType<typeof lobbySchema>;
+type LobbyModel = InferSchemaType<typeof lobbySchema>;
 
-export default model<Lobby>("Lobby", lobbySchema);
+export default model<LobbyModel>("Lobby", lobbySchema);

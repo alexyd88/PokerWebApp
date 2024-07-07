@@ -29,14 +29,13 @@ export const getLobby: RequestHandler = async (req, res, next) => {
 
 export const createLobby: RequestHandler = async (req, res, next) => {
   // extract any errors that were found by the validator
-  const { title, description, isChecked } = req.body;
+  const { players } = req.body;
   // if there are errors, then this function throws an exception
-  console.log("in controllers rn");
   try {
+    console.log(players, Date.now());
+    console.log("I CALLED THIS BRO");
     const Lobby = await LobbyModel.create({
-      title: title,
-      description: description,
-      isChecked: isChecked,
+      players: players,
       dateCreated: Date.now(),
     });
     res.status(201).json(Lobby);
