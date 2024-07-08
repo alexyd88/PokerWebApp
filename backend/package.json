@@ -25,7 +25,8 @@
     "@types/http-errors": "^2.0.4",
     "@types/module-alias": "^2.0.4",
     "@types/node": "^20.14.10",
-    "module-alias": "^2.2.3"
+    "module-alias": "^2.2.3",
+    "socket.io": "^4.7.5"
   },
   "_moduleAliases": {
     "@": "./dist"
