@@ -33,7 +33,6 @@ export const createLobby: RequestHandler = async (req, res, next) => {
   // if there are errors, then this function throws an exception
   try {
     console.log(players, Date.now());
-    console.log("I CALLED THIS BRO");
     const Lobby = await LobbyModel.create({
       players: players,
       dateCreated: Date.now(),
