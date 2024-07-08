@@ -30,6 +30,10 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log("user connected");
+  socket.on("message", (arg) => {
+    socket.emit("message", arg);
+    console.log("message:", arg);
+  });
 });
 
 server.listen(env.SOCKET_PORT, () => {
