@@ -9,6 +9,7 @@ import env from "./util/validateEnv";
 import { Server } from "socket.io";
 import { createServer } from "node:http";
 import { createMessage } from "./controllers/message";
+import type { Message } from "types";
 
 const MONGODB_URI = env.MONGODB_URI;
 
@@ -31,9 +32,14 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log("user connected");
-  socket.on("message", (...args) => {
-    socket.emit("message", args);
-    createMessage(args[0], args[1], args[2]);
+  socket.on("message", (arg: Message) => {
+    io.in(arg.lobbyId).emit("message", arg);
+    console.log("emitting to:" + arg.lobbyId);
+    createMessage(arg);
+  });
+  socket.on("joinLobby", (room: string) => {
+    console.log("socket joined:", room);
+    socket.join(room);
   });
 });
 

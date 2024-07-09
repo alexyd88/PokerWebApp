@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { getLobby, getMessageBoard } from "../api/lobbies";
 import { useEffect, useState } from "react";
-import type { Lobby, MessageBoard } from "types";
+import type { Lobby, MessageBoard, Message } from "types";
 import { io, Socket } from "socket.io-client";
 
 export function Lobby() {
@@ -11,16 +11,23 @@ export function Lobby() {
   const [haveSetSocket, setHaveSetSocket] = useState<boolean>(false);
   const [messageBoard, setMessageBoard] = useState<MessageBoard | null>(null);
   const handleSubmit = () => {
-    socket?.emit("message", lobbyId, "myself", "hello");
+    if (lobbyId == null) {
+      console.log("how tf is lobbyid null in lobby.tsx");
+      return;
+    }
+    const message: Message = {
+      lobbyId: lobbyId,
+      player: "myself",
+      content: "hi",
+    };
+    socket?.emit("message", message);
     console.log("pushed button, messageBoard: ", messageBoard);
   };
 
   useEffect(() => {
     if (!haveSetSocket) {
       const socket = io("localhost:3002");
-      socket.on("connect", () => {
-        console.log(socket.id);
-      });
+      socket.emit("joinLobby", lobbyId);
       if (lobbyId != undefined && lobby == null) {
         getLobby(lobbyId).then((result) => {
           setLobby(null);
@@ -39,24 +46,28 @@ export function Lobby() {
       setSocket(socket);
       setHaveSetSocket(true);
     }
-  }, []);
-  useEffect(() => {
-    const eventListener = (args: unknown[]) => {
-      console.log("new message", args[0], args[1], args[2]);
+    const eventListener = (arg: Message) => {
+      const newMessageBoard: MessageBoard = { messages: [] };
+      if (messageBoard != null)
+        newMessageBoard.messages = messageBoard?.messages;
+      newMessageBoard.messages.push(arg);
+      console.log(newMessageBoard?.messages);
+      setMessageBoard(newMessageBoard);
+      console.log("new message", arg.player, arg.content);
     };
     socket?.on("message", eventListener);
     return () => {
       socket?.off("message", eventListener);
     };
-  }, [lobby, lobbyId, socket]);
+  }, [lobby, lobbyId, socket, messageBoard, haveSetSocket]);
 
   return (
     <div>
       {lobby != null ? lobby._id : "loading"}
       <div>
-        {messageBoard?.messages.map((message) => {
+        {messageBoard?.messages.map((message, index) => {
           return (
-            <div>
+            <div key={index}>
               {message.player}: {message.content}
             </div>
           );
