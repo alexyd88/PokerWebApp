@@ -3,3 +3,12 @@ export interface Lobby {
   date: Date;
   players: string[];
 }
+
+export interface Message {
+  player: string;
+  content: string;
+}
+
+export interface MessageBoard {
+  messages: Message[];
+}

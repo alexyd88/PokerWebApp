@@ -1,7 +1,7 @@
 import { get, handleAPIError, post } from "./requests";
 
 import type { APIResult } from "./requests";
-import type { Lobby } from "types";
+import type { Lobby, MessageBoard } from "types";
 
 /**
  * The expected inputs when we want to create a new Lobby object. In the MVP, we only
@@ -32,6 +32,18 @@ export async function getLobby(id: string): Promise<APIResult<Lobby>> {
   try {
     const response = await get(`/api/lobby/${id}`);
     const json = (await response.json()) as Lobby;
+    return { success: true, data: json };
+  } catch (error) {
+    return handleAPIError(error);
+  }
+}
+
+export async function getMessageBoard(
+  id: string
+): Promise<APIResult<MessageBoard>> {
+  try {
+    const response = await get(`/api/lobby/messages/${id}`);
+    const json = (await response.json()) as MessageBoard;
     return { success: true, data: json };
   } catch (error) {
     return handleAPIError(error);

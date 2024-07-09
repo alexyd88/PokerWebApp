@@ -9,7 +9,7 @@ import * as MessageBoard from "../controllers/messageBoard";
 const router = express.Router();
 
 router.get("/:id", LobbyController.getLobby);
-router.get("/messages", MessageBoard.getList);
+router.get("/messages/:id", MessageBoard.getMessageBoard);
 router.post("/", LobbyController.createLobby);
 router.delete("/:id", LobbyController.removeLobby);
 

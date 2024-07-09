@@ -40,7 +40,7 @@ export const createLobby: RequestHandler = async (req, res, next) => {
     });
     const messageBoard = await MessageBoardModel.create({
       lobbyId: lobby._id,
-      messages: ["placeholder"],
+      messages: [],
     });
     lobby.messageBoard = messageBoard._id;
     await lobby.save();
