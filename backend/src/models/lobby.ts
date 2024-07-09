@@ -5,7 +5,7 @@ const lobbySchema = new Schema({
   players: { type: Array<Player>, required: true },
   date: { type: Date, required: true },
   messageBoard: { type: Schema.Types.ObjectId, required: false },
-  seats: { type: Array<Schema.Types.ObjectId>, required: true },
+  seats: { type: Array<Number>, required: true },
 });
 
 type LobbyModel = InferSchemaType<typeof lobbySchema>;

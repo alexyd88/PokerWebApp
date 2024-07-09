@@ -1,7 +1,7 @@
 import { get, handleAPIError, post } from "./requests";
 
 import type { APIResult } from "./requests";
-import type { Lobby, MessageBoard } from "types";
+import type { Lobby, MessageBoard, Player } from "types";
 
 /**
  * The expected inputs when we want to create a new Lobby object. In the MVP, we only
@@ -9,7 +9,7 @@ import type { Lobby, MessageBoard } from "types";
  * this tutorial you'll likely want to add more fields here.
  */
 export interface CreateLobbyRequest {
-  players: string[];
+  players: Player[];
 }
 
 /**

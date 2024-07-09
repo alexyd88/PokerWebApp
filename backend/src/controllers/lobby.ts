@@ -37,8 +37,8 @@ export const createLobby: RequestHandler = async (req, res, next) => {
   const { players } = req.body;
   // if there are errors, then this function throws an exception
   try {
-    const seats: Schema.Types.ObjectId[] = [];
-    for (let i = 0; i < 10; i++) seats.push(null);
+    const seats: number[] = [];
+    for (let i = 0; i < 10; i++) seats.push(-1);
     const lobby = await LobbyModel.create({
       players: players,
       date: Date.now(),

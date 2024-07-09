@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { getLobby, getMessageBoard } from "../api/lobbies";
-import { SetStateAction, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Lobby, MessageBoard, Message, Player } from "types";
 import { io, Socket } from "socket.io-client";
 
@@ -32,7 +32,7 @@ export function Lobby() {
   }
   const sayHiSubmit = () => {
     sendMessage("chat", "hi from " + String(player?._id));
-    console.log("lobby: ", lobby?.players);
+    console.log("lobby: ", lobby?.seats);
   };
 
   const playerNameSubmit = () => {
@@ -40,6 +40,18 @@ export function Lobby() {
       "name"
     ) as HTMLInputElement;
     sendMessage("createPlayer", name.value);
+  };
+
+  const sitSubmit = () => {
+    if (player == null) return;
+    const seat: HTMLInputElement = document.getElementById(
+      "seat"
+    ) as HTMLInputElement;
+    socket?.emit("sit", player.inGameId, seat.value, lobbyId);
+    sendMessage("chat", "im sitting here at seat " + seat.value);
+    const newPlayer = JSON.parse(JSON.stringify(player));
+    newPlayer.seat = seat;
+    setPlayer(newPlayer);
   };
 
   useEffect(() => {
@@ -69,7 +81,6 @@ export function Lobby() {
       if (messageBoard != null)
         newMessageBoard.messages = messageBoard?.messages;
       newMessageBoard.messages.push(arg);
-      console.log(newMessageBoard?.messages);
       setMessageBoard(newMessageBoard);
       if (lobbyId != undefined)
         getLobby(lobbyId).then((result) => {
@@ -98,9 +109,16 @@ export function Lobby() {
           );
         })}
       </div>
+      <div>
+        {lobby?.seats.map((user, index) => {
+          return <div key={index}>{user}</div>;
+        })}
+      </div>
       <input type="text" id="name" />
       <button onClick={playerNameSubmit}>join</button>
       <button onClick={sayHiSubmit}> Say Hi </button>
+      <input type="text" id="seat" />
+      <button onClick={sitSubmit}>sit</button>
     </div>
   );
 }

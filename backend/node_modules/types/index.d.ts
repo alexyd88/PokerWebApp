@@ -2,6 +2,7 @@ export interface Lobby {
   _id: string;
   date: Date;
   players: Player[];
+  seats: number[];
 }
 
 export interface Message {
