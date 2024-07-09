@@ -8,6 +8,7 @@ import app from "./app";
 import env from "./util/validateEnv";
 import { Server } from "socket.io";
 import { createServer } from "node:http";
+import { createMessage } from "./controllers/message";
 
 const MONGODB_URI = env.MONGODB_URI;
 
@@ -30,9 +31,9 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log("user connected");
-  socket.on("message", (arg) => {
-    socket.emit("message", arg);
-    console.log("message:", arg);
+  socket.on("message", (...args) => {
+    socket.emit("message", args);
+    createMessage(args[0], args[1], args[2]);
   });
 });
 

@@ -5,6 +5,7 @@
 import { RequestHandler } from "express";
 import * as createHttpError from "http-errors";
 import LobbyModel from "../models/lobby";
+import MessageBoardModel from "../models/messageBoard";
 
 export const getLobby: RequestHandler = async (req, res, next) => {
   const { id } = req.params;
@@ -32,12 +33,19 @@ export const createLobby: RequestHandler = async (req, res, next) => {
   const { players } = req.body;
   // if there are errors, then this function throws an exception
   try {
-    console.log(players, Date.now());
-    const Lobby = await LobbyModel.create({
+    const lobby = await LobbyModel.create({
       players: players,
-      dateCreated: Date.now(),
+      date: Date.now(),
+      messageBoard: null,
     });
-    res.status(201).json(Lobby);
+    const messageBoard = await MessageBoardModel.create({
+      lobbyId: lobby._id,
+      messages: ["placeholder"],
+    });
+    lobby.messageBoard = messageBoard._id;
+    await lobby.save();
+    console.log("lobby.messageBoard is", lobby.messageBoard);
+    res.status(201).json(lobby);
   } catch (error) {
     next(error);
   }

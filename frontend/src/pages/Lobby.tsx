@@ -9,13 +9,13 @@ export function Lobby() {
   const [lobby, setLobby] = useState<Lobby | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const handleSubmit = () => {
-    socket?.emit("message", "hello");
+    socket?.emit("message", lobbyId, "myself", "hello");
   };
 
   useEffect(() => {
     const socket = io("localhost:3002");
     socket.on("connect", () => {
-      console.log(socket.id); // x8WIv7-mJelg7on_ALbx
+      console.log(socket.id);
     });
     setSocket(socket);
   }, []);
@@ -27,8 +27,8 @@ export function Lobby() {
           setLobby(result.data);
         }
       });
-    const eventListener = (data: string) => {
-      console.log("new message", data);
+    const eventListener = (args: unknown[]) => {
+      console.log("new message", args[0], args[1], args[2]);
     };
     socket?.on("message", eventListener);
     return () => {
