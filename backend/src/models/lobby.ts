@@ -1,9 +1,11 @@
 import { InferSchemaType, Schema, model } from "mongoose";
+import { Player } from "types";
 
 const lobbySchema = new Schema({
-  players: { type: Array<{ name: string }>, required: true },
+  players: { type: Array<Player>, required: true },
   date: { type: Date, required: true },
   messageBoard: { type: Schema.Types.ObjectId, required: false },
+  seats: { type: Array<Schema.Types.ObjectId>, required: true },
 });
 
 type LobbyModel = InferSchemaType<typeof lobbySchema>;

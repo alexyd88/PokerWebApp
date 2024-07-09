@@ -11,6 +11,7 @@ export async function createMessage(args: Message): Promise<null> {
   const message = await MessageModel.create({
     lobbyId: args.lobbyId,
     player: args.player,
+    type: args.type,
     content: args.content,
   });
   const lobby = await Lobby.findById(args.lobbyId);
