@@ -23,10 +23,10 @@ export function Lobby() {
       content: content,
     };
     socket?.emit("message", message);
-    if (type == "createPlayer") {
+    if (type == "createPlayer" && player == null) {
       socket?.emit("createPlayer", message, (response: { player: Player }) => {
         setPlayer(response.player);
-        console.log("I SET MY PLAYER ", player?._id);
+        console.log("I SET MY PLAYER ", response.player?.seat);
       });
     }
   }
@@ -43,14 +43,14 @@ export function Lobby() {
   };
 
   const sitSubmit = () => {
-    if (player == null) return;
+    if (player == null || player.seat != -1) return;
     const seat: HTMLInputElement = document.getElementById(
       "seat"
     ) as HTMLInputElement;
     socket?.emit("sit", player.inGameId, seat.value, lobbyId);
     sendMessage("chat", "im sitting here at seat " + seat.value);
     const newPlayer = JSON.parse(JSON.stringify(player));
-    newPlayer.seat = seat;
+    newPlayer.seat = seat.value;
     setPlayer(newPlayer);
   };
 
@@ -99,7 +99,9 @@ export function Lobby() {
 
   return (
     <div>
-      {lobby != null ? lobby._id : "loading"}
+      {player != null
+        ? "name: " + player.name + " seat: " + player.seat
+        : "placeholder, join below"}
       <div>
         {messageBoard?.messages.map((message, index) => {
           return (
@@ -109,11 +111,10 @@ export function Lobby() {
           );
         })}
       </div>
-      <div>
-        {lobby?.seats.map((user, index) => {
-          return <div key={index}>{user}</div>;
-        })}
-      </div>
+      {lobby?.seats.map((user, index) => {
+        return <li key={index}>{user}</li>;
+      })}
+
       <input type="text" id="name" />
       <button onClick={playerNameSubmit}>join</button>
       <button onClick={sayHiSubmit}> Say Hi </button>
