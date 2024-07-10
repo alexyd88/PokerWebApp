@@ -9,6 +9,8 @@ import * as cors from "cors";
 import { isHttpError } from "http-errors";
 import lobbyRoutes from "./routes/lobby";
 
+import { Foo } from "game_logic";
+
 const app = express();
 
 // initializes Express to accept JSON in the request/response body
