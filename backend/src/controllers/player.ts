@@ -1,7 +1,7 @@
 import PlayerModel from "../models/player";
 import Lobby from "../models/lobby";
 import MessageBoard from "../models/messageBoard";
-import type { Player } from "types";
+import type { Player } from "game_logic";
 
 export async function createPlayer(
   lobbyId: string,
@@ -22,5 +22,6 @@ export async function createPlayer(
     inGameId: player.inGameId,
     name: player.name,
     seat: -1,
+    gameInfo: null,
   };
 }

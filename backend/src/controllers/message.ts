@@ -5,7 +5,7 @@
 import MessageModel from "../models/message";
 import Lobby from "../models/lobby";
 import MessageBoard from "../models/messageBoard";
-import type { Message } from "types";
+import type { Message } from "game_logic";
 
 export async function createMessage(args: Message): Promise<null> {
   const message = await MessageModel.create({

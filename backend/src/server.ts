@@ -10,7 +10,7 @@ import { Server } from "socket.io";
 import { createServer } from "node:http";
 import { createMessage } from "./controllers/message";
 import { createPlayer } from "./controllers/player";
-import type { Message } from "types";
+import type { Message } from "game_logic";
 import Player from "./models/player";
 import Lobby from "./models/lobby";
 

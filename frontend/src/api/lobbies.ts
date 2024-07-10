@@ -1,7 +1,7 @@
 import { get, handleAPIError, post } from "./requests";
 
 import type { APIResult } from "./requests";
-import type { Lobby, MessageBoard, Player } from "types";
+import type { Lobby, MessageBoard, Player } from "game_logic";
 
 /**
  * The expected inputs when we want to create a new Lobby object. In the MVP, we only

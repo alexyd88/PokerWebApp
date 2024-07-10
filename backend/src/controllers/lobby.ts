@@ -7,7 +7,7 @@ import * as createHttpError from "http-errors";
 import LobbyModel from "../models/lobby";
 import MessageBoardModel from "../models/messageBoard";
 import { Schema } from "mongoose";
-import { Player } from "types";
+import { Player } from "game_logic";
 export const getLobby: RequestHandler = async (req, res, next) => {
   const { id } = req.params;
 

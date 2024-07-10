@@ -1,5 +1,5 @@
 import { InferSchemaType, Schema, model } from "mongoose";
-import { Player } from "types";
+import { Player } from "game_logic";
 
 const lobbySchema = new Schema({
   players: { type: Array<Player>, required: true },

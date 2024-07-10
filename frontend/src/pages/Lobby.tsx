@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { getLobby, getMessageBoard } from "../api/lobbies";
 import { useEffect, useState } from "react";
-import type { Lobby, MessageBoard, Message, Player } from "types";
+import type { Lobby, MessageBoard, Message, Player } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
 export function Lobby() {
@@ -47,10 +47,13 @@ export function Lobby() {
     const seat: HTMLInputElement = document.getElementById(
       "seat"
     ) as HTMLInputElement;
-    socket?.emit("sit", player.inGameId, seat.value, lobbyId);
-    sendMessage("chat", "im sitting here at seat " + seat.value);
+    const seatNum: number = Number(seat.value);
+    // some input validation idk
+    if (lobby?.seats[seatNum] != -1) return;
+    socket?.emit("sit", player.inGameId, seatNum, lobbyId);
+    sendMessage("chat", "im sitting here at seat " + seatNum);
     const newPlayer = JSON.parse(JSON.stringify(player));
-    newPlayer.seat = seat.value;
+    newPlayer.seat = seatNum;
     setPlayer(newPlayer);
   };
 
