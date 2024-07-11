@@ -95,7 +95,13 @@ export function Lobby() {
       console.log(new Date());
       const socket = io("localhost:3002");
       socket.emit("joinLobby", lobbyId);
-      setLobby(createLobbyClient(lobbyId));
+      socket?.emit(
+        "getMessages",
+        lobbyId,
+        (response: { messages: Message[] }) => {
+          setLobby(createLobbyClient(lobbyId, response.messages));
+        }
+      );
       setSocket(socket);
     }
     function handleMessage(message: Message) {

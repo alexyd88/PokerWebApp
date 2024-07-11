@@ -39,7 +39,7 @@ export function prepareMessageForClient(
   message: Message
 ): Message {
   const newMessage: Message = JSON.parse(JSON.stringify(message));
-  console.log("lobby", lobby);
+  //console.log("lobby", lobby);
   if (
     lobby.players[message.playerId.inGameId].playerId.id != message.playerId.id
   ) {
@@ -168,7 +168,7 @@ export function createLobbyServer(): Lobby {
   };
 }
 
-export function createLobbyClient(id: string): Lobby {
+export function createLobbyClient(id: string, messages: Message[]): Lobby {
   const seats: number[] = [];
   for (let i = 0; i < 10; i++) seats.push(-1);
   return {
@@ -176,7 +176,7 @@ export function createLobbyClient(id: string): Lobby {
     date: new Date(),
     players: [],
     seats: seats,
-    messages: [],
+    messages: messages,
     gameInfo: createLobbyGameInfo(),
   };
 }

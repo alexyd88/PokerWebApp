@@ -12,6 +12,7 @@ import type { Lobby, Message, Player } from "game_logic";
 import {
   addPlayer,
   createChat,
+  messageToString,
   prepareMessageForClient,
   sit,
 } from "game_logic";
@@ -48,13 +49,20 @@ function addMessage(message: Message) {
   messageLists
     .get(message.playerId.lobbyId)
     .push(prepareMessageForClient(lobby, message));
+  console.log(
+    "gonna add",
+    message.playerId.lobbyId,
+    messageToString(prepareMessageForClient(lobby, message))
+  );
 }
 
 io.on("connection", (socket) => {
   console.log("user connected", Date.now());
   socket.on("getMessages", async (lobbyId: string, callback) => {
+    let messages: Message[] = messageLists.get(lobbyId);
+    console.log(lobbyId, messageLists.get(lobbyId));
     callback({
-      messages: messageLists.get(lobbyId),
+      messages: messages,
     });
   });
   socket.on("joinLobby", (room: string) => {
@@ -67,7 +75,7 @@ io.on("connection", (socket) => {
     if (!lobbies.has(message.playerId.lobbyId)) {
       console.log("how was lobby not created yet");
     }
-    console.log(lobbies.get(message.playerId.lobbyId).players);
+    //console.log(lobbies.get(message.playerId.lobbyId).players);
     io.in(message.playerId.lobbyId).emit(
       "message",
       prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
@@ -88,7 +96,7 @@ io.on("connection", (socket) => {
       message.name
     );
     const lobby = lobbies.get(message.playerId.lobbyId);
-    console.log(lobby.players);
+    //console.log(lobby.players);
     let alrAdded: boolean = false;
     for (let i = 0; i < lobby.players.length; i++) {
       if (lobby.players[i].playerId.name == message.name) alrAdded = true;
@@ -105,14 +113,14 @@ io.on("connection", (socket) => {
         newMessage
       )
     );
-    console.log(newPlayer);
+    //console.log(newPlayer);
     callback({
       player: newPlayer,
     });
   });
   socket.on("sit", async (message: Message) => {
     message = copyMessage(message);
-    console.log(message);
+    //console.log(message);
     addMessage(message);
     if (message.type != "action") return;
     sit(
