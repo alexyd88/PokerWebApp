@@ -4,10 +4,9 @@ import { useNavigate } from "react-router-dom";
 export function CreateLobby() {
   const navigate = useNavigate();
   const handleSubmit = () => {
-    createLobby({ players: [] }).then((result) => {
+    createLobby().then((result) => {
       if (result.success) {
-        console.log("success");
-        navigate("/lobby/" + result.data._id);
+        navigate("/lobby/" + result.data.id);
       } else {
         console.log("NO SUCCESS");
       }

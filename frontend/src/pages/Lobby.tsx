@@ -1,123 +1,160 @@
 import { useParams } from "react-router-dom";
-import { getLobby, getMessageBoard } from "../api/lobbies";
 import { useEffect, useState } from "react";
-import type { Lobby, MessageBoard, Message, Player } from "game_logic";
+import type { Lobby, Message, Player } from "game_logic";
+import {
+  createLobbyClient,
+  addPlayer,
+  createChat,
+  createAction,
+  validateSeat,
+  sit,
+  addExistingPlayer,
+} from "game_logic";
 import { io, Socket } from "socket.io-client";
 
 export function Lobby() {
   const lobbyId = useParams().lobbyId;
-  const [lobby, setLobby] = useState<Lobby | null>(null);
+  const [reactLobby, setLobby] = useState<Lobby | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [haveSetSocket, setHaveSetSocket] = useState<boolean>(false);
-  const [messageBoard, setMessageBoard] = useState<MessageBoard | null>(null);
   const [player, setPlayer] = useState<Player | null>(null);
-  function sendMessage(type: string, content: string) {
-    if (lobbyId == null) {
-      console.log("how tf is lobbyid null in lobby.tsx");
-      return;
-    }
-    const message: Message = {
-      lobbyId: lobbyId,
-      player: player == null || player._id == null ? "GUEST" : player._id,
-      type: type,
-      content: content,
-    };
-    socket?.emit("message", message);
-    if (type == "createPlayer" && player == null) {
-      socket?.emit("createPlayer", message, (response: { player: Player }) => {
-        setPlayer(response.player);
-        console.log("I SET MY PLAYER ", response.player?.seat);
-      });
-    }
+  function playerNameSubmit() {
+    handleButton("playerSubmit");
   }
-  const sayHiSubmit = () => {
-    sendMessage("chat", "hi from " + String(player?._id));
-    console.log("lobby: ", lobby?.seats);
-  };
-
-  const playerNameSubmit = () => {
-    const name: HTMLInputElement = document.getElementById(
-      "name"
-    ) as HTMLInputElement;
-    sendMessage("createPlayer", name.value);
-  };
-
-  const sitSubmit = () => {
-    if (player == null || player.seat != -1) return;
-    const seat: HTMLInputElement = document.getElementById(
-      "seat"
-    ) as HTMLInputElement;
-    const seatNum: number = Number(seat.value);
-    // some input validation idk
-    if (lobby?.seats[seatNum] != -1) return;
-    socket?.emit("sit", player.inGameId, seatNum, lobbyId);
-    sendMessage("chat", "im sitting here at seat " + seatNum);
-    const newPlayer = JSON.parse(JSON.stringify(player));
-    newPlayer.seat = seatNum;
-    setPlayer(newPlayer);
-  };
-
+  function sayHiSubmit() {
+    handleButton("sayHi");
+  }
+  function sitSubmit() {
+    handleButton("sitSubmit");
+  }
+  function handleButton(button: string) {
+    const lobby = JSON.parse(JSON.stringify(reactLobby));
+    console.log("player", player);
+    console.log("lobby", lobby);
+    switch (button) {
+      case "sayHi": {
+        if (player != null && lobby != null) {
+          const message: Message = createChat(player.playerId, "hi");
+          socket?.emit("chat", message);
+        }
+        break;
+      }
+      case "playerSubmit": {
+        const name: HTMLInputElement = document.getElementById(
+          "name"
+        ) as HTMLInputElement;
+        if (player == null && lobby != null && lobbyId != null) {
+          let player: Player = addPlayer(lobby, name.value);
+          const message: Message = {
+            type: "addPlayer",
+            name: name.value,
+            playerId: player.playerId,
+          };
+          console.log("gonna addplayer");
+          socket?.emit("addPlayer", message, (response: { player: Player }) => {
+            player = response.player;
+            console.log("SET PLAYER", response.player);
+            setPlayer(player);
+            console.log("set player");
+          });
+        } else {
+          console.log("something wrong player submit");
+        }
+        break;
+      }
+      case "sitSubmit": {
+        const seat: HTMLInputElement = document.getElementById(
+          "seat"
+        ) as HTMLInputElement;
+        const seatNum = Number(seat.value);
+        if (
+          player != null &&
+          lobby != null &&
+          validateSeat(lobby, player.playerId, seatNum)
+        ) {
+          const message: Message = createAction(
+            player.playerId,
+            "sit",
+            seatNum
+          );
+          socket?.emit("sit", message);
+        }
+        break;
+      }
+    }
+    setLobby(lobby);
+  }
   useEffect(() => {
-    if (!haveSetSocket) {
+    if (lobbyId != undefined && reactLobby == null) {
+      console.log(new Date());
       const socket = io("localhost:3002");
       socket.emit("joinLobby", lobbyId);
-      if (lobbyId != undefined && lobby == null) {
-        getLobby(lobbyId).then((result) => {
-          setLobby(null);
-          if (result.success) {
-            setLobby(result.data);
-          }
-        });
-        getMessageBoard(lobbyId).then((result) => {
-          setMessageBoard(null);
-          if (result.success) {
-            setMessageBoard(result.data);
-          }
-        });
-      }
-
+      setLobby(createLobbyClient(lobbyId));
       setSocket(socket);
-      setHaveSetSocket(true);
     }
-    const eventListener = (arg: Message) => {
-      const newMessageBoard: MessageBoard = { messages: [] };
-      if (messageBoard != null)
-        newMessageBoard.messages = messageBoard?.messages;
-      newMessageBoard.messages.push(arg);
-      setMessageBoard(newMessageBoard);
-      if (lobbyId != undefined)
-        getLobby(lobbyId).then((result) => {
-          setLobby(null);
-          if (result.success) {
-            setLobby(result.data);
+    function handleMessage(message: Message) {
+      const lobby = JSON.parse(JSON.stringify(reactLobby));
+      lobby.messages.push(message);
+      console.log("received", message);
+      switch (message.type) {
+        case "chat": {
+          //nothing special really
+          break;
+        }
+        case "action": {
+          switch (message.action) {
+            case "sit": {
+              sit(
+                lobby,
+                lobby.players[message.playerId.inGameId].playerId,
+                message.content
+              );
+              break;
+            }
           }
-        });
-      console.log("new message", arg.player, arg.content);
+          break;
+        }
+        case "addPlayer": {
+          if (message.playerId.inGameId == lobby.players.length - 1) break;
+          const player: Player = addExistingPlayer(lobby, message.playerId);
+          lobby.players.push(player);
+          break;
+        }
+      }
+      setLobby(lobby);
+    }
+    const eventListener = (message: Message) => {
+      if (reactLobby == null) {
+        console.log("BROTHER HOW IS LOBBY NULL");
+        return;
+      }
+      handleMessage(message);
+      console.log("recieved", message);
     };
     socket?.on("message", eventListener);
     return () => {
       socket?.off("message", eventListener);
     };
-  }, [lobby, lobbyId, socket, messageBoard, haveSetSocket]);
+  }, [lobbyId, reactLobby]);
 
   return (
     <div>
+      yo
       {player != null
-        ? "name: " + player.name + " seat: " + player.seat
+        ? "name: " + player.playerId.name + " seat: " + player.playerId.seat
         : "placeholder, join below"}
       <div>
-        {messageBoard?.messages.map((message, index) => {
+        <div>hello?</div>
+        {reactLobby?.messages.map((message, index) => {
           return (
             <div key={index}>
-              {message.player}: {message.type}: {message.content}
+              {message.playerId.name}: {message.type}:
             </div>
           );
         })}
       </div>
-      {lobby?.seats.map((user, index) => {
+      {reactLobby?.seats.map((user, index) => {
         return <li key={index}>{user}</li>;
       })}
-
       <input type="text" id="name" />
       <button onClick={playerNameSubmit}>join</button>
       <button onClick={sayHiSubmit}> Say Hi </button>

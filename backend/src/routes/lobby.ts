@@ -3,14 +3,12 @@
  */
 
 import * as express from "express";
-import * as LobbyController from "../controllers/lobby";
-import * as MessageBoard from "../controllers/messageBoard";
+import * as LobbiesController from "../controllers/lobbies";
 
 const router = express.Router();
 
-router.get("/:id", LobbyController.getLobby);
-router.get("/messages/:id", MessageBoard.getMessageBoard);
-router.post("/", LobbyController.createLobby);
-router.delete("/:id", LobbyController.removeLobby);
+router.get("/messages/:id", LobbiesController.getMessages);
+router.post("/", LobbiesController.addLobby);
+router.delete("/:id", LobbiesController.removeLobby);
 
 export default router;
