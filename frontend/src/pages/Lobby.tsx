@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import type { Lobby, Message, Player } from "game_logic";
+import type { Lobby, Message, Player, PlayerId } from "game_logic";
 import {
   createLobbyClient,
   addPlayer,
@@ -10,6 +10,7 @@ import {
   sit,
   addExistingPlayer,
   messageToString,
+  createPlayerId,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -17,7 +18,7 @@ export function Lobby() {
   const lobbyId = useParams().lobbyId;
   const [reactLobby, setLobby] = useState<Lobby | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [player, setPlayer] = useState<Player | null>(null);
+  const [playerId, setPlayerId] = useState<PlayerId | null>(null);
   function playerNameSubmit() {
     handleButton("playerSubmit");
   }
@@ -29,12 +30,12 @@ export function Lobby() {
   }
   function handleButton(button: string) {
     const lobby = JSON.parse(JSON.stringify(reactLobby));
-    console.log("player", player);
+    console.log("playerId", playerId);
     console.log("lobby", lobby);
     switch (button) {
       case "sayHi": {
-        if (player != null && lobby != null) {
-          const message: Message = createChat(player.playerId, "hi");
+        if (playerId != null && lobby != null) {
+          const message: Message = createChat(playerId, "hi");
           socket?.emit("chat", message);
         }
         break;
@@ -45,24 +46,23 @@ export function Lobby() {
         ) as HTMLInputElement;
         if (
           name.value.length > 0 &&
-          player == null &&
+          playerId == null &&
           lobby != null &&
           lobbyId != null
         ) {
-          let player: Player = addPlayer(lobby, name.value);
           const message: Message = {
             type: "addPlayer",
             id: -1,
             name: name.value,
-            playerId: player.playerId,
+            playerId: createPlayerId(lobby, name.value),
           };
-          console.log("gonna addplayer");
-          socket?.emit("addPlayer", message, (response: { player: Player }) => {
-            player = response.player;
-            console.log("SET PLAYER", response.player);
-            setPlayer(player);
-            console.log("set player");
-          });
+          socket?.emit(
+            "addPlayer",
+            message,
+            (response: { playerId: PlayerId }) => {
+              setPlayerId(response.playerId);
+            }
+          );
         } else {
           console.log("something wrong player submit");
         }
@@ -74,15 +74,11 @@ export function Lobby() {
         ) as HTMLInputElement;
         const seatNum = Number(seat.value);
         if (
-          player != null &&
+          playerId != null &&
           lobby != null &&
-          validateSeat(lobby, player.playerId, seatNum)
+          validateSeat(lobby, playerId, seatNum)
         ) {
-          const message: Message = createAction(
-            player.playerId,
-            "sit",
-            seatNum
-          );
+          const message: Message = createAction(playerId, "sit", seatNum);
           socket?.emit("sit", message);
         }
         break;
@@ -90,6 +86,7 @@ export function Lobby() {
     }
     setLobby(lobby);
   }
+
   useEffect(() => {
     if (lobbyId != undefined && reactLobby == null) {
       console.log(new Date());
@@ -99,14 +96,16 @@ export function Lobby() {
         "getMessages",
         lobbyId,
         (response: { messages: Message[] }) => {
-          setLobby(createLobbyClient(lobbyId, response.messages));
+          let lobby: Lobby = createLobbyClient(lobbyId, response.messages);
+          for (let i = 0; i < response.messages.length; i++)
+            handleMessage(response.messages[i], lobby);
+          setLobby(lobby);
         }
       );
       setSocket(socket);
     }
-    function handleMessage(message: Message) {
-      const lobby = JSON.parse(JSON.stringify(reactLobby));
-      lobby.messages.push(message);
+
+    function handleMessage(message: Message, lobby: Lobby) {
       console.log("received", message);
       switch (message.type) {
         case "chat": {
@@ -116,6 +115,7 @@ export function Lobby() {
         case "action": {
           switch (message.action) {
             case "sit": {
+              console.log(message.playerId.inGameId, lobby.players);
               sit(
                 lobby,
                 lobby.players[message.playerId.inGameId].playerId,
@@ -128,11 +128,16 @@ export function Lobby() {
         }
         case "addPlayer": {
           if (message.playerId.inGameId == lobby.players.length - 1) break;
-          const player: Player = addExistingPlayer(lobby, message.playerId);
-          lobby.players.push(player);
+          addExistingPlayer(lobby, message.playerId);
           break;
         }
       }
+    }
+
+    function handleNewMessage(message: Message) {
+      const lobby = JSON.parse(JSON.stringify(reactLobby));
+      handleMessage(message, lobby);
+      lobby.messages.push(message);
       setLobby(lobby);
     }
     const eventListener = (message: Message) => {
@@ -140,7 +145,7 @@ export function Lobby() {
         console.log("BROTHER HOW IS LOBBY NULL");
         return;
       }
-      handleMessage(message);
+      handleNewMessage(message);
       console.log("recieved", message);
     };
     socket?.on("message", eventListener);
@@ -152,8 +157,8 @@ export function Lobby() {
   return (
     <div>
       yo
-      {player != null
-        ? "name: " + player.playerId.name + " seat: " + player.playerId.seat
+      {playerId != null
+        ? "name: " + playerId.name + " seat: " + playerId.seat
         : "placeholder, join below"}
       <div>
         <div>hello?</div>

@@ -38,10 +38,6 @@ const io = new Server(server, {
   },
 });
 
-function copyMessage(message: Message): Message {
-  return JSON.parse(JSON.stringify(message));
-}
-
 function addMessage(message: Message) {
   const lobby = lobbies.get(message.playerId.lobbyId);
   message.id = lobby.messages.length;
@@ -70,7 +66,6 @@ io.on("connection", (socket) => {
     socket.join(room);
   });
   socket.on("chat", async (message: Message) => {
-    message = copyMessage(message);
     addMessage(message);
     if (!lobbies.has(message.playerId.lobbyId)) {
       console.log("how was lobby not created yet");
@@ -82,7 +77,6 @@ io.on("connection", (socket) => {
     );
   });
   socket.on("addPlayer", async (message: Message, callback) => {
-    message = copyMessage(message);
     if (message.type != "addPlayer") {
       console.log("how did u get here bro");
       return;
@@ -115,11 +109,10 @@ io.on("connection", (socket) => {
     );
     //console.log(newPlayer);
     callback({
-      player: newPlayer,
+      playerId: newPlayer.playerId,
     });
   });
   socket.on("sit", async (message: Message) => {
-    message = copyMessage(message);
     //console.log(message);
     addMessage(message);
     if (message.type != "action") return;
