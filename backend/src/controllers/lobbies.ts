@@ -2,6 +2,7 @@ import { RequestHandler } from "express";
 import { Lobby, Message, createLobbyServer } from "game_logic";
 
 export let lobbies = new Map<string, Lobby>();
+export let messageLists = new Map<string, Message[]>();
 
 export function getLobby(id: string): Lobby {
   if (!lobbies.has(id)) return null;
@@ -16,7 +17,7 @@ export const addLobby: RequestHandler = async (req, res, next) => {
   try {
     let lobby = createLobbyServer();
     lobbies.set(lobby.id, lobby);
-
+    messageLists.set(lobby.id, []);
     res.status(201).json({ id: lobby.id });
   } catch (error) {
     next(error);

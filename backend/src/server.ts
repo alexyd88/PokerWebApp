@@ -15,7 +15,7 @@ import {
   prepareMessageForClient,
   sit,
 } from "game_logic";
-import { lobbies } from "./controllers/lobbies";
+import { lobbies, messageLists } from "./controllers/lobbies";
 import { bool } from "envalid";
 
 const MONGODB_URI = env.MONGODB_URI;
@@ -41,19 +41,33 @@ function copyMessage(message: Message): Message {
   return JSON.parse(JSON.stringify(message));
 }
 
+function addMessage(message: Message) {
+  const lobby = lobbies.get(message.playerId.lobbyId);
+  message.id = lobby.messages.length;
+  lobby.messages.push(message);
+  messageLists
+    .get(message.playerId.lobbyId)
+    .push(prepareMessageForClient(lobby, message));
+}
+
 io.on("connection", (socket) => {
   console.log("user connected", Date.now());
+  socket.on("getMessages", async (lobbyId: string, callback) => {
+    callback({
+      messages: messageLists.get(lobbyId),
+    });
+  });
   socket.on("joinLobby", (room: string) => {
     console.log("socket joined:", room);
     socket.join(room);
   });
   socket.on("chat", async (message: Message) => {
     message = copyMessage(message);
+    addMessage(message);
     if (!lobbies.has(message.playerId.lobbyId)) {
       console.log("how was lobby not created yet");
     }
     console.log(lobbies.get(message.playerId.lobbyId).players);
-    lobbies.get(message.playerId.lobbyId).messages.push(message);
     io.in(message.playerId.lobbyId).emit(
       "message",
       prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
@@ -61,7 +75,6 @@ io.on("connection", (socket) => {
   });
   socket.on("addPlayer", async (message: Message, callback) => {
     message = copyMessage(message);
-    console.log("gona ad payer");
     if (message.type != "addPlayer") {
       console.log("how did u get here bro");
       return;
@@ -84,6 +97,7 @@ io.on("connection", (socket) => {
       lobbies.get(message.playerId.lobbyId).players.push(newPlayer);
     const newMessage: Message = JSON.parse(JSON.stringify(message));
     newMessage.playerId = newPlayer.playerId;
+    addMessage(newMessage);
     io.in(newMessage.playerId.lobbyId).emit(
       "message",
       prepareMessageForClient(
@@ -99,6 +113,7 @@ io.on("connection", (socket) => {
   socket.on("sit", async (message: Message) => {
     message = copyMessage(message);
     console.log(message);
+    addMessage(message);
     if (message.type != "action") return;
     sit(
       lobbies.get(message.playerId.lobbyId),

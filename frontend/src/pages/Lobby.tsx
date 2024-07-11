@@ -9,6 +9,7 @@ import {
   validateSeat,
   sit,
   addExistingPlayer,
+  messageToString,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -42,10 +43,16 @@ export function Lobby() {
         const name: HTMLInputElement = document.getElementById(
           "name"
         ) as HTMLInputElement;
-        if (player == null && lobby != null && lobbyId != null) {
+        if (
+          name.value.length > 0 &&
+          player == null &&
+          lobby != null &&
+          lobbyId != null
+        ) {
           let player: Player = addPlayer(lobby, name.value);
           const message: Message = {
             type: "addPlayer",
+            id: -1,
             name: name.value,
             playerId: player.playerId,
           };
@@ -145,11 +152,7 @@ export function Lobby() {
       <div>
         <div>hello?</div>
         {reactLobby?.messages.map((message, index) => {
-          return (
-            <div key={index}>
-              {message.playerId.name}: {message.type}:
-            </div>
-          );
+          return <div key={index}>{messageToString(message)}</div>;
         })}
       </div>
       {reactLobby?.seats.map((user, index) => {

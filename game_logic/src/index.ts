@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 
 type MessageCommon = {
   playerId: PlayerId;
+  id: number;
 };
 
 type MessageChat = {
@@ -22,6 +23,15 @@ type MessageAddPlayer = {
 
 export type Message = MessageCommon &
   (MessageAction | MessageChat | MessageAddPlayer);
+
+export function messageToString(message: Message): string {
+  let x: string =
+    message.id + ": " + message.type + ": " + message.playerId.name;
+  if (message.type == "chat") x += ": " + message.text;
+  if (message.type == "action")
+    x += ": " + message.action + " " + message.content;
+  return x;
+}
 
 //remove playerid, verify playername
 export function prepareMessageForClient(
@@ -87,6 +97,7 @@ export function validateSeat(
 export function createChat(playerId: PlayerId, text: string): Message {
   return {
     type: "chat",
+    id: -1,
     text: text,
     playerId: playerId,
   };
@@ -99,6 +110,7 @@ export function createAction(
 ): Message {
   return {
     type: "action",
+    id: -1,
     action: action,
     content: content,
     playerId: playerId,
