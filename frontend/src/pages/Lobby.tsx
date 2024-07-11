@@ -44,12 +44,7 @@ export function Lobby() {
         const name: HTMLInputElement = document.getElementById(
           "name"
         ) as HTMLInputElement;
-        if (
-          name.value.length > 0 &&
-          playerId == null &&
-          lobby != null &&
-          lobbyId != null
-        ) {
+        if (name.value.length > 0 && playerId == null && lobby != null) {
           const message: Message = {
             type: "addPlayer",
             id: -1,
@@ -64,7 +59,12 @@ export function Lobby() {
             }
           );
         } else {
-          console.log("something wrong player submit");
+          console.log(
+            "something wrong player submit",
+            name.value.length > 0,
+            playerId == null,
+            lobby != null
+          );
         }
         break;
       }
@@ -88,10 +88,12 @@ export function Lobby() {
   }
 
   useEffect(() => {
-    if (lobbyId != undefined && reactLobby == null) {
-      console.log(new Date());
-      const socket = io("localhost:3002");
-      socket.emit("joinLobby", lobbyId);
+    function replay(socket: Socket | null): void {
+      console.log("gonna replay");
+      if (lobbyId == undefined) {
+        console.log("how tf");
+        return;
+      }
       socket?.emit(
         "getMessages",
         lobbyId,
@@ -102,6 +104,13 @@ export function Lobby() {
           setLobby(lobby);
         }
       );
+    }
+
+    if (lobbyId != undefined && reactLobby == null) {
+      console.log(new Date());
+      const socket = io("localhost:3002");
+      socket.emit("joinLobby", lobbyId);
+      replay(socket);
       setSocket(socket);
     }
 
@@ -127,7 +136,6 @@ export function Lobby() {
           break;
         }
         case "addPlayer": {
-          if (message.playerId.inGameId == lobby.players.length - 1) break;
           addExistingPlayer(lobby, message.playerId);
           break;
         }
@@ -136,6 +144,7 @@ export function Lobby() {
 
     function handleNewMessage(message: Message) {
       const lobby = JSON.parse(JSON.stringify(reactLobby));
+      if (message.id != lobby.messages.length) replay(socket);
       handleMessage(message, lobby);
       lobby.messages.push(message);
       setLobby(lobby);
