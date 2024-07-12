@@ -10,10 +10,12 @@ import { Server } from "socket.io";
 import { createServer } from "node:http";
 import type { Lobby, Message, Player } from "game_logic";
 import {
-  addPlayer,
   createChat,
+  createPlayerGameInfo,
+  createPlayerId,
   messageToString,
   prepareMessageForClient,
+  setPlayerName,
   sit,
 } from "game_logic";
 import { lobbies, messageLists } from "./controllers/lobbies";
@@ -52,6 +54,14 @@ function addMessage(message: Message) {
   );
 }
 
+function addAndReturn(message: Message) {
+  addMessage(message);
+  io.in(message.playerId.lobbyId).emit(
+    "message",
+    prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
+  );
+}
+
 io.on("connection", (socket) => {
   console.log("user connected", Date.now());
   socket.on("getMessages", async (lobbyId: string, callback) => {
@@ -66,15 +76,16 @@ io.on("connection", (socket) => {
     socket.join(room);
   });
   socket.on("chat", async (message: Message) => {
-    addMessage(message);
     if (!lobbies.has(message.playerId.lobbyId)) {
       console.log("how was lobby not created yet");
     }
     //console.log(lobbies.get(message.playerId.lobbyId).players);
-    io.in(message.playerId.lobbyId).emit(
-      "message",
-      prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
-    );
+    addAndReturn(message);
+  });
+  socket.on("setPlayerName", async (message: Message) => {
+    const lobby = lobbies.get(message.playerId.lobbyId);
+    setPlayerName(lobby, message.playerId);
+    addAndReturn(message);
   });
   socket.on("addPlayer", async (message: Message, callback) => {
     if (message.type != "addPlayer") {
@@ -85,36 +96,34 @@ io.on("connection", (socket) => {
       console.log("how was lobby not created yet");
       return;
     }
-    const newPlayer: Player = addPlayer(
-      lobbies.get(message.playerId.lobbyId),
-      message.name
-    );
     const lobby = lobbies.get(message.playerId.lobbyId);
+    let player: Player = {
+      playerId: createPlayerId(lobby, "GUEST", message.playerId.id),
+      gameInfo: createPlayerGameInfo(),
+    };
     //console.log(lobby.players);
-    let alrAdded: boolean = false;
-    for (let i = 0; i < lobby.players.length; i++) {
-      if (lobby.players[i].playerId.name == message.name) alrAdded = true;
+    // let alrAdded: boolean = false;
+    // for (let i = 0; i < lobby.players.length; i++) {
+    //   if (lobby.players[i].playerId.name == message.playerId.name) {
+    //     console.log("BIG WARNING WHY MULTIPLE ADDS");
+    //     alrAdded = true;
+    //   }
+    // }
+    let err: boolean = false;
+    if (lobby.players.length != message.playerId.inGameId) {
+      console.log("RACE CONDITION OMG");
+      err = true;
+    } else {
+      lobby.players.push(player);
+      addAndReturn(message);
     }
-    if (!alrAdded)
-      lobbies.get(message.playerId.lobbyId).players.push(newPlayer);
-    const newMessage: Message = JSON.parse(JSON.stringify(message));
-    newMessage.playerId = newPlayer.playerId;
-    addMessage(newMessage);
-    io.in(newMessage.playerId.lobbyId).emit(
-      "message",
-      prepareMessageForClient(
-        lobbies.get(newMessage.playerId.lobbyId),
-        newMessage
-      )
-    );
-    //console.log(newPlayer);
+
     callback({
-      playerId: newPlayer.playerId,
+      err: err,
     });
   });
   socket.on("sit", async (message: Message) => {
     //console.log(message);
-    addMessage(message);
     if (message.type != "action") return;
     sit(
       lobbies.get(message.playerId.lobbyId),
@@ -122,10 +131,7 @@ io.on("connection", (socket) => {
       message.content
     );
 
-    io.in(message.playerId.lobbyId).emit(
-      "message",
-      prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
-    );
+    addAndReturn(message);
   });
 });
 
