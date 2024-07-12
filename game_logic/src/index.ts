@@ -1,5 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 
+export * as Logic from "./logic";
+
 type MessageCommon = {
   playerId: PlayerId;
   id: number;
@@ -18,11 +20,14 @@ type MessageAction = {
 
 type MessageAddPlayer = {
   type: "addPlayer";
-  name: string;
+};
+
+type MessageSetPlayer = {
+  type: "setPlayerName";
 };
 
 export type Message = MessageCommon &
-  (MessageAction | MessageChat | MessageAddPlayer);
+  (MessageAction | MessageChat | MessageAddPlayer | MessageSetPlayer);
 
 export function messageToString(message: Message): string {
   let x: string =
@@ -130,6 +135,7 @@ export interface LobbyGameInfo {
   curRaise: number;
   maxChipsThisRound: number;
   totalPot: number;
+  deck: Card[];
 }
 export function createLobbyGameInfo() {
   return {
@@ -144,6 +150,7 @@ export function createLobbyGameInfo() {
     curRaise: 2,
     maxChipsThisRound: 2,
     totalPot: 3,
+    deck: [],
   };
 }
 
@@ -152,6 +159,7 @@ export interface Lobby {
   date: Date;
   players: Player[];
   seats: number[];
+  host: number; //player ingameid
   gameInfo: LobbyGameInfo;
   messages: Message[];
 }
@@ -164,20 +172,22 @@ export function createLobbyServer(): Lobby {
     date: new Date(),
     players: [],
     seats: seats,
+    host: 0,
     messages: [],
     gameInfo: createLobbyGameInfo(),
   };
 }
 
-export function createLobbyClient(id: string, messages: Message[]): Lobby {
+export function createLobbyClient(id: string): Lobby {
   const seats: number[] = [];
   for (let i = 0; i < 10; i++) seats.push(-1);
   return {
     id: id,
     date: new Date(),
     players: [],
+    host: 0,
     seats: seats,
-    messages: messages,
+    messages: [],
     gameInfo: createLobbyGameInfo(),
   };
 }
@@ -187,6 +197,7 @@ export interface Card {
   suit: string;
   numDisplay: string;
 }
+
 export interface PlayerGameInfo {
   stack: number;
   chipsInPot: number;
@@ -197,6 +208,23 @@ export interface PlayerGameInfo {
   fullHand: Card[];
   curBestHand: Card[];
   curHandStrength: number;
+  away: boolean;
+}
+
+export function playerGameInfoToString(gameInfo: PlayerGameInfo) {
+  return (
+    "stack: " +
+    gameInfo.stack +
+    " | inPot: " +
+    gameInfo.inPot +
+    " | chips in pot: " +
+    gameInfo.chipsThisRound +
+    " | " +
+    gameInfo.card1.numDisplay +
+    gameInfo.card1.suit +
+    gameInfo.card2.numDisplay +
+    gameInfo.card2.suit
+  );
 }
 
 export function createPlayerGameInfo(): PlayerGameInfo {
@@ -210,6 +238,7 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     fullHand: [],
     curBestHand: [],
     curHandStrength: -1,
+    away: false,
   };
 }
 
@@ -220,9 +249,14 @@ export interface PlayerId {
   seat: number;
   lobbyId: string;
 }
-export function createPlayerId(lobby: Lobby, name: string): PlayerId {
+
+export function createPlayerId(
+  lobby: Lobby,
+  name: string,
+  id: null | string
+): PlayerId {
   return {
-    id: uuidv4(),
+    id: id == null ? uuidv4() : id,
     inGameId: lobby.players.length,
     name: name,
     seat: -1,
@@ -243,11 +277,8 @@ export function addExistingPlayer(lobby: Lobby, playerId: PlayerId): Player {
   return newPlayer;
 }
 
-export function addPlayer(lobby: Lobby, name: string): Player {
-  const newPlayer: Player = {
-    playerId: createPlayerId(lobby, name),
-    gameInfo: createPlayerGameInfo(),
-  };
-  lobby.players.push(newPlayer);
-  return newPlayer;
+export function setPlayerName(lobby: Lobby, playerId: PlayerId): void {
+  for (let i = 0; i < lobby.players.length; i++)
+    if (lobby.players[i].playerId.inGameId == playerId.inGameId)
+      lobby.players[i].playerId.name = playerId.name;
 }
