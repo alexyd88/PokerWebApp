@@ -1,9 +1,9 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import type { Lobby, Message, Player, PlayerId } from "game_logic";
+import type { Lobby, Message, PlayerId } from "game_logic";
+import { Logic, setPlayerName, playerGameInfoToString } from "game_logic";
 import {
   createLobbyClient,
-  addPlayer,
   createChat,
   createAction,
   validateSeat,
@@ -16,9 +16,11 @@ import { io, Socket } from "socket.io-client";
 
 export function Lobby() {
   const lobbyId = useParams().lobbyId;
-  const [reactLobby, setLobby] = useState<Lobby | null>(null);
+  const [reactLobby, setReactLobby] = useState<Lobby | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [playerId, setPlayerId] = useState<PlayerId | null>(null);
+  let lobby: Lobby = createLobbyClient("LMAO DUMBASS");
+  if (lobbyId != null) lobby = createLobbyClient(lobbyId);
   function playerNameSubmit() {
     handleButton("playerSubmit");
   }
@@ -44,15 +46,15 @@ export function Lobby() {
         const name: HTMLInputElement = document.getElementById(
           "name"
         ) as HTMLInputElement;
-        if (name.value.length > 0 && playerId == null && lobby != null) {
+        if (name.value.length > 0 && playerId != null) {
+          playerId.name = name.value;
           const message: Message = {
-            type: "addPlayer",
+            type: "setPlayerName",
             id: -1,
-            name: name.value,
-            playerId: createPlayerId(lobby, name.value),
+            playerId: playerId,
           };
           socket?.emit(
-            "addPlayer",
+            "setPlayerName",
             message,
             (response: { playerId: PlayerId }) => {
               setPlayerId(response.playerId);
@@ -62,7 +64,7 @@ export function Lobby() {
           console.log(
             "something wrong player submit",
             name.value.length > 0,
-            playerId == null,
+            playerId != null,
             lobby != null
           );
         }
@@ -84,99 +86,143 @@ export function Lobby() {
         break;
       }
     }
-    setLobby(lobby);
+    setReactLobby(lobby);
   }
 
-  useEffect(() => {
-    function replay(socket: Socket | null): void {
-      console.log("gonna replay");
-      if (lobbyId == undefined) {
-        console.log("how tf");
-        return;
+  function emitRetryAddPlayer(socket: Socket, message: Message) {
+    socket.emit("addPlayer", message, (response: { err: boolean }) => {
+      if (response == null) {
+        console.log("how the fuck");
       }
-      socket?.emit(
-        "getMessages",
-        lobbyId,
-        (response: { messages: Message[] }) => {
-          let lobby: Lobby = createLobbyClient(lobbyId, response.messages);
-          for (let i = 0; i < response.messages.length; i++)
-            handleMessage(response.messages[i], lobby);
-          setLobby(lobby);
-        }
-      );
-    }
+      if (response.err) {
+        message.playerId.inGameId++;
+        emitRetryAddPlayer(socket, message);
+      } else {
+        setPlayerId(message.playerId);
+      }
+    });
+  }
 
-    if (lobbyId != undefined && reactLobby == null) {
-      console.log(new Date());
-      const socket = io("localhost:3002");
-      socket.emit("joinLobby", lobbyId);
-      replay(socket);
-      setSocket(socket);
-    }
-
-    function handleMessage(message: Message, lobby: Lobby) {
-      console.log("received", message);
-      switch (message.type) {
-        case "chat": {
-          //nothing special really
-          break;
-        }
-        case "action": {
-          switch (message.action) {
-            case "sit": {
-              console.log(message.playerId.inGameId, lobby.players);
-              sit(
-                lobby,
-                lobby.players[message.playerId.inGameId].playerId,
-                message.content
-              );
-              break;
-            }
+  function handleMessage(message: Message) {
+    if (lobby == null) return;
+    console.log("received", message);
+    switch (message.type) {
+      case "chat": {
+        //nothing special really
+        break;
+      }
+      case "action": {
+        switch (message.action) {
+          case "sit": {
+            console.log(message.playerId.inGameId, lobby.players);
+            sit(
+              lobby,
+              lobby.players[message.playerId.inGameId].playerId,
+              message.content
+            );
+            break;
           }
-          break;
         }
-        case "addPlayer": {
-          addExistingPlayer(lobby, message.playerId);
-          break;
-        }
+        break;
+      }
+      case "addPlayer": {
+        addExistingPlayer(lobby, message.playerId);
+        break;
+      }
+      case "setPlayerName": {
+        setPlayerName(lobby, message.playerId);
       }
     }
+  }
 
-    function handleNewMessage(message: Message) {
-      const lobby = JSON.parse(JSON.stringify(reactLobby));
-      if (message.id != lobby.messages.length) replay(socket);
-      handleMessage(message, lobby);
-      lobby.messages.push(message);
-      setLobby(lobby);
+  function replay(socket: Socket | null, wantAddPlayer: boolean) {
+    if (lobby == null) return;
+    console.log("gonna replay");
+    if (lobbyId == undefined) {
+      console.log("how tf");
+      return;
     }
-    const eventListener = (message: Message) => {
-      if (reactLobby == null) {
-        console.log("BROTHER HOW IS LOBBY NULL");
-        return;
+    socket?.emit(
+      "getMessages",
+      lobbyId,
+      (response: { messages: Message[] }) => {
+        lobby.messages = response.messages;
+        for (let i = 0; i < response.messages.length; i++)
+          handleMessage(response.messages[i]);
+        if (wantAddPlayer) {
+          const pid: PlayerId = createPlayerId(lobby, "GUEST", null);
+          const message: Message = {
+            type: "addPlayer",
+            id: -1,
+            playerId: pid,
+          };
+          emitRetryAddPlayer(socket, message);
+        }
       }
+    );
+  }
+
+  const handleNewMessage = (message: Message) => {
+    if (message.id != lobby.messages.length) {
+      console.log("I MISSED A MESSAGE");
+      replay(socket, false);
+    }
+    lobby = JSON.parse(JSON.stringify(lobby));
+    handleMessage(message);
+    lobby.messages.push(message);
+    console.log("should set lobby again?");
+    console.log(lobby.messages);
+    setReactLobby(lobby);
+  };
+
+  useEffect(() => {
+    const socket = io("localhost:3002");
+    socket.emit("joinLobby", lobbyId);
+    replay(socket, true);
+    console.log(new Date());
+    socket?.on("message", (message: Message) => {
       handleNewMessage(message);
-      console.log("recieved", message);
-    };
-    socket?.on("message", eventListener);
-    return () => {
-      socket?.off("message", eventListener);
-    };
-  }, [lobbyId, reactLobby]);
+    });
+    setSocket(socket);
+    setReactLobby(lobby);
+  }, []);
 
   return (
     <div>
-      yo
+      {/* <button onClick={startSubmit}>start</button> */}
+      {reactLobby?.players.map((Player, index) => (
+        <li key={index}>
+          <div>
+            stack: {Player.gameInfo.stack}; | inPot:{" "}
+            {String(Player.gameInfo.inPot)}| chips in pot:{" "}
+            {Player.gameInfo.chipsThisRound}| {Player.gameInfo.card1.numDisplay}
+            {Player.gameInfo.card1.suit} {Player.gameInfo.card2.numDisplay}
+            {Player.gameInfo.card2.suit}|{" "}
+            {/* {strengthToString(Player.gameInfo.curHandStrength)}|{" "} */}
+            <div>
+              {Player.gameInfo.fullHand.map(
+                (Card) => Card.numDisplay + Card.suit
+              )}{" "}
+            </div>
+          </div>
+        </li>
+      ))}
+
       {playerId != null
         ? "name: " + playerId.name + " seat: " + playerId.seat
         : "placeholder, join below"}
-      <div>
-        <div>hello?</div>
-        {reactLobby?.messages.map((message, index) => {
-          return <div key={index}>{messageToString(message)}</div>;
-        })}
-      </div>
+      {reactLobby?.messages.map((message, index) => {
+        return <div key={index}>{messageToString(message)}</div>;
+      })}
       {reactLobby?.seats.map((user, index) => {
-        return <li key={index}>{user}</li>;
+        return (
+          <li key={index}>
+            {user == -1
+              ? "empty"
+              : reactLobby.players[user].playerId.name +
+                playerGameInfoToString(reactLobby.players[user].gameInfo)}
+          </li>
+        );
       })}
       <input type="text" id="name" />
       <button onClick={playerNameSubmit}>join</button>
