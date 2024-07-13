@@ -16,6 +16,9 @@ import {
   runAction,
   getErrorFromAction,
   lobbyInfoToString,
+  updateHoleCards,
+  deal,
+  createCard,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -218,11 +221,34 @@ export function Lobby() {
         break;
       }
       case "start": {
-        startLobby(lobby);
+        startLobby(lobby, true);
         break;
       }
       case "action": {
-        runAction(lobby, message);
+        runAction(lobby, message, true);
+        break;
+      }
+      case "newCards": {
+        if (message.isCommunity) {
+          for (let i = 0; i < message.cards.length; i++) {
+            deal(lobby, message.cards[i]);
+          }
+        } else {
+          if (playerId != null && playerId.inGameId != null) {
+            if (message.cards.length > 0)
+              updateHoleCards(
+                lobby.players[playerId.inGameId].gameInfo,
+                message.cards[0],
+                message.cards[1]
+              );
+            else
+              updateHoleCards(
+                lobby.players[message.playerId.inGameId].gameInfo,
+                createCard(0, "?"),
+                createCard(0, "?")
+              );
+          }
+        }
         break;
       }
     }

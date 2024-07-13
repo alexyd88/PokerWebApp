@@ -9,6 +9,7 @@ import {
   takeFromPot,
 } from "./logic";
 import { strengthToString } from "./handEval";
+import { Socket } from "socket.io";
 
 export * from "./logic";
 export * from "./handEval";
@@ -27,6 +28,13 @@ type MessageAction = {
   type: "action";
   action: string;
   content: number;
+};
+
+type MessageNewCards = {
+  type: "newCards";
+  id: number;
+  cards: Card[];
+  isCommunity: boolean;
 };
 
 export function createMessageAction(
@@ -68,9 +76,20 @@ export type Message = MessageCommon &
     | MessageSetPlayer
     | MessageSit
     | MessageStart
+    | MessageNewCards
   );
 
+function cardsToString(cards: Card[]): string {
+  let s: string = "";
+  for (let i = 0; i < cards.length; i++)
+    s += cards[i].numDisplay + cards[i].suit;
+  return s;
+}
+
 export function messageToString(message: Message): string {
+  if (message.type == "newCards") {
+    return message.id + ": server sent: " + cardsToString(message.cards);
+  }
   let x: string =
     message.id + ": " + message.type + ": " + message.playerId.name;
   if (message.type == "chat") x += ": " + message.text;
@@ -85,6 +104,10 @@ export function prepareMessageForClient(
   message: Message
 ): Message {
   const newMessage: Message = JSON.parse(JSON.stringify(message));
+  if (message.type == "newCards") {
+    newMessage.playerId.id = "UNKNOWN ID";
+    return message;
+  }
   //console.log("lobby", lobby);
   if (
     lobby.players[message.playerId.inGameId].playerId.id != message.playerId.id
@@ -395,10 +418,19 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
   return "success";
 }
 
-export function runAction(lobby: Lobby, message: Message): string {
+export interface ActionResult {
+  cards: Card[]; // community cards
+  calledReset: boolean;
+}
+
+export function runAction(
+  lobby: Lobby,
+  message: Message,
+  isClient: boolean
+): ActionResult | null {
   if (message.type != "action") {
     console.log("PLEASE HOW ARE U HERE");
-    return "WTF";
+    return null;
   }
   let lg: LobbyGameInfo = lobby.gameInfo;
   let curPlayer: PlayerGameInfo =
@@ -415,11 +447,7 @@ export function runAction(lobby: Lobby, message: Message): string {
       } else {
         lg.numPlayedThisRound--;
         console.log("PLEASE HOW ARE U HERE");
-        return (
-          "Invalid Raise, must raise to at least " +
-          Math.max(lg.maxChipsThisRound + lg.curRaise, lg.bigBlind) +
-          " and up to idk"
-        );
+        return null;
       }
       break;
     }
@@ -435,7 +463,8 @@ export function runAction(lobby: Lobby, message: Message): string {
           if (lobby.players[i].gameInfo.inPot) {
             takeFromPot(lg, lobby.players[i].gameInfo, lg.totalPot);
           }
-        resetHand(lobby);
+        resetHand(lobby, isClient);
+        return { cards: [], calledReset: true };
       }
       break;
     }
@@ -446,7 +475,7 @@ export function runAction(lobby: Lobby, message: Message): string {
           curPlayer.stack != 0
         ) {
           lg.numPlayedThisRound--;
-          return "Cannot check";
+          return null;
         }
       }
       break;
@@ -464,9 +493,10 @@ export function runAction(lobby: Lobby, message: Message): string {
       }
     }
   }
-  if (doneRound) endRound(lobby);
+  let actionResult: ActionResult | null = null;
+  if (doneRound) actionResult = endRound(lobby, isClient);
   lg.curPlayer = findNext(lobby, lg.curPlayer);
   curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
   //implement autocheck if only one person has chips
-  return "success";
+  return actionResult;
 }

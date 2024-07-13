@@ -3,6 +3,7 @@ import { Lobby, Message, createLobbyServer } from "game_logic";
 
 export let lobbies = new Map<string, Lobby>();
 export let messageLists = new Map<string, Message[]>();
+export let socketList = new Map<string, string[]>();
 
 export function getLobby(id: string): Lobby {
   if (!lobbies.has(id)) return null;
@@ -17,6 +18,7 @@ export const addLobby: RequestHandler = async (req, res, next) => {
   try {
     let lobby = createLobbyServer();
     lobbies.set(lobby.id, lobby);
+    socketList.set(lobby.id, []);
     messageLists.set(lobby.id, []);
     res.status(201).json({ id: lobby.id });
   } catch (error) {
@@ -26,6 +28,7 @@ export const addLobby: RequestHandler = async (req, res, next) => {
 
 export function removeLobby(id: string) {
   lobbies.delete(id);
+  socketList.delete(id);
 }
 
 export function getMessages(id: string): Message[] {

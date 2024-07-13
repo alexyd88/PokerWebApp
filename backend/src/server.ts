@@ -8,7 +8,7 @@ import app from "./app";
 import env from "./util/validateEnv";
 import { Server } from "socket.io";
 import { createServer } from "node:http";
-import type { Lobby, Message, Player } from "game_logic";
+import type { ActionResult, Lobby, Message, Player } from "game_logic";
 import {
   createChat,
   createPlayerGameInfo,
@@ -21,7 +21,8 @@ import {
   sit,
   startLobby,
 } from "game_logic";
-import { lobbies, messageLists } from "./controllers/lobbies";
+import { lobbies, messageLists, socketList } from "./controllers/lobbies";
+import { send } from "node:process";
 
 const MONGODB_URI = env.MONGODB_URI;
 
@@ -56,15 +57,62 @@ function addMessage(message: Message) {
   );
 }
 
-function addAndReturn(message: Message) {
-  addMessage(message);
-  io.in(message.playerId.lobbyId).emit(
-    "message",
-    prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
-  );
+function addAndReturn(
+  message: Message,
+  location: string | null,
+  except: string | null
+) {
+  if (except == null)
+    //this is the main one with the info
+    addMessage(message);
+  if (location == null) location = message.playerId.lobbyId;
+  if (except != null) {
+    io.in(location)
+      .except(except)
+      .emit(
+        "message",
+        prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
+      );
+  } else {
+    io.in(location).emit(
+      "message",
+      prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
+    );
+  }
+
   console.log(
+    "WILL SEND TO",
+    location,
+    "EXCEPT",
+    location,
     prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
   );
+}
+
+function sendUpdateHoleCards(lobby: Lobby, message: Message) {
+  for (let i = 0; i < lobby.players.length; i++) {
+    if (lobby.players[i].gameInfo.fullHand.length != 0) {
+      const cardMessage: Message = {
+        playerId: message.playerId,
+        type: "newCards",
+        id: -1,
+        cards: lobby.players[i].gameInfo.fullHand,
+        isCommunity: false,
+      };
+      cardMessage.playerId.inGameId = i;
+      addAndReturn(
+        cardMessage,
+        socketList.get(lobby.id)[lobby.players[i].playerId.inGameId],
+        null
+      );
+      cardMessage.cards = [];
+      addAndReturn(
+        cardMessage,
+        null,
+        socketList.get(lobby.id)[lobby.players[i].playerId.inGameId]
+      );
+    }
+  }
 }
 
 io.on("connection", (socket) => {
@@ -85,13 +133,13 @@ io.on("connection", (socket) => {
       console.log("how was lobby not created yet");
     }
     //console.log(lobbies.get(message.playerId.lobbyId).players);
-    addAndReturn(message);
+    addAndReturn(message, null, null);
   });
   socket.on("setPlayerName", async (message: Message) => {
     const lobby = lobbies.get(message.playerId.lobbyId);
     console.log(lobby);
     setPlayerNameServer(lobby, message.playerId);
-    addAndReturn(message);
+    addAndReturn(message, null, null);
   });
   socket.on("addPlayer", async (message: Message, callback) => {
     if (message.type != "addPlayer") {
@@ -121,7 +169,8 @@ io.on("connection", (socket) => {
       err = true;
     } else {
       lobby.players.push(player);
-      addAndReturn(message);
+      socketList.get(message.playerId.lobbyId).push(socket.id);
+      addAndReturn(message, null, null);
     }
 
     callback({
@@ -137,12 +186,13 @@ io.on("connection", (socket) => {
       message.location
     );
 
-    addAndReturn(message);
+    addAndReturn(message, null, null);
   });
   socket.on("start", async (message: Message) => {
     let lobby = lobbies.get(message.playerId.lobbyId);
-    startLobby(lobby);
-    addAndReturn(message);
+    startLobby(lobby, false);
+    addAndReturn(message, null, null);
+    sendUpdateHoleCards(lobby, message);
   });
   socket.on("action", async (message: Message) => {
     let lobby = lobbies.get(message.playerId.lobbyId);
@@ -153,8 +203,26 @@ io.on("connection", (socket) => {
       console.log("U ARE TROLLING ME");
       return;
     }
-    runAction(lobby, message);
-    addAndReturn(message);
+    addAndReturn(message, null, null);
+    const actionResult: ActionResult = runAction(lobby, message, false);
+    if (actionResult == null) {
+      console.log("WHAT THE FUCK");
+      return;
+    }
+    if (actionResult.cards.length != 0) {
+      const cardMessage: Message = {
+        playerId: message.playerId,
+        type: "newCards",
+        id: -1,
+        cards: actionResult.cards,
+        isCommunity: true,
+      };
+      addAndReturn(cardMessage, null, null);
+    }
+    if (actionResult.calledReset) {
+      let lobby = lobbies.get(message.playerId.lobbyId);
+      sendUpdateHoleCards(lobby, message);
+    }
   });
 });
 
