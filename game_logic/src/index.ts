@@ -8,8 +8,10 @@ import {
   resetHand,
   takeFromPot,
 } from "./logic";
+import { strengthToString } from "./handEval";
 
 export * from "./logic";
+export * from "./handEval";
 
 type MessageCommon = {
   playerId: PlayerId;
@@ -253,7 +255,8 @@ export interface PlayerGameInfo {
   away: boolean;
 }
 
-export function playerGameInfoToString(gameInfo: PlayerGameInfo) {
+export function playerGameInfoToString(lobby: Lobby, player: Player) {
+  const gameInfo: PlayerGameInfo = player.gameInfo;
   return (
     "stack: " +
     gameInfo.stack +
@@ -265,8 +268,37 @@ export function playerGameInfoToString(gameInfo: PlayerGameInfo) {
     gameInfo.card1.numDisplay +
     gameInfo.card1.suit +
     gameInfo.card2.numDisplay +
-    gameInfo.card2.suit
+    gameInfo.card2.suit +
+    " | " +
+    strengthToString(gameInfo.curHandStrength)
   );
+  // (player.playerId.seat == lobby.gameInfo.curPlayer)
+  // ? "<-- this guy's turn"
+  // : "";
+}
+
+export function lobbyInfoToString(lobby: LobbyGameInfo) {
+  return (
+    "curPlayer: " +
+    lobby.curPlayer +
+    " | " +
+    // numInPot: number;
+    // numPlayedThisRound: number;
+    // curRound: number;
+    // gameStarted: boolean;
+    "dealer chip: " +
+    lobby.dealerChip +
+    " | " +
+    "total pot: " +
+    lobby.totalPot +
+    " | "
+  );
+  // curRaise: number;
+  // maxChipsThisRound: number;
+  // totalPot: number;
+  // deck: Card[];
+  // board: Card[];
+  // )
 }
 
 export function createPlayerGameInfo(): PlayerGameInfo {

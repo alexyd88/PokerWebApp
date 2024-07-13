@@ -15,6 +15,7 @@ import {
   createMessageAction,
   runAction,
   getErrorFromAction,
+  lobbyInfoToString,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -280,24 +281,6 @@ export function Lobby() {
 
   return (
     <div>
-      {reactLobby?.players.map((Player, index) => (
-        <li key={index}>
-          <div>
-            stack: {Player.gameInfo.stack}; | inPot:{" "}
-            {String(Player.gameInfo.inPot)}| chips in pot:{" "}
-            {Player.gameInfo.chipsThisRound}| {Player.gameInfo.card1.numDisplay}
-            {Player.gameInfo.card1.suit} {Player.gameInfo.card2.numDisplay}
-            {Player.gameInfo.card2.suit}|{" "}
-            {/* {strengthToString(Player.gameInfo.curHandStrength)}|{" "} */}
-            <div>
-              {Player.gameInfo.fullHand.map(
-                (Card) => Card.numDisplay + Card.suit
-              )}{" "}
-            </div>
-          </div>
-        </li>
-      ))}
-
       {reactPlayerId != null
         ? "name: " + reactPlayerId.name + " seat: " + reactPlayerId.seat
         : "placeholder, join below"}
@@ -310,7 +293,7 @@ export function Lobby() {
             {user == -1
               ? "empty"
               : reactLobby.players[user].playerId.name +
-                playerGameInfoToString(reactLobby.players[user].gameInfo)}
+                playerGameInfoToString(reactLobby, reactLobby.players[user])}
           </li>
         );
       })}
@@ -337,6 +320,11 @@ export function Lobby() {
       ) : (
         <div> you are not host </div>
       )}
+      <div>
+        {reactLobby?.gameInfo != null
+          ? lobbyInfoToString(reactLobby?.gameInfo)
+          : ""}
+      </div>
       <ul></ul>
     </div>
   );

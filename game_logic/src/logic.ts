@@ -1,3 +1,4 @@
+import { compareHands, findBestHand, getStrength } from "./handEval";
 import { Card, Lobby, LobbyGameInfo, Player, PlayerGameInfo } from "./index";
 
 function getRandInt(min: number, max: number) {
@@ -74,6 +75,70 @@ export function findNext(lobby: Lobby, position: number) {
   return position;
 }
 
+function updatePlayerBestHand(lobby: Lobby) {
+  for (let i = 0; i < lobby.players.length; i++) {
+    let player = lobby.players[i].gameInfo;
+    player.curBestHand = findBestHand(player.fullHand);
+    player.curHandStrength = getStrength(player.curBestHand);
+  }
+}
+
+function showdown(lobby: Lobby) {
+  let lg = lobby.gameInfo;
+  while (lg.numInPot > 0) {
+    let bestHand: Card[] = [];
+    let lowestAmt = -1;
+    for (let j = 0; j < lobby.players.length; j++) {
+      let player = lobby.players[j].gameInfo;
+      if (player.inPot) {
+        if (lowestAmt == -1) lowestAmt = player.chipsInPot;
+        lowestAmt = Math.min(lowestAmt, player.chipsInPot);
+        if (bestHand.length == 0) bestHand = player.curBestHand;
+        if (compareHands(player.curBestHand, bestHand) == 1)
+          bestHand = player.curBestHand;
+      }
+    }
+
+    const winners: number[] = [];
+    let totalPayout = 0;
+    for (let j = 0; j < lobby.players.length; j++) {
+      let player = lobby.players[j].gameInfo;
+      const amt = Math.min(lowestAmt, player.chipsInPot);
+      player.chipsInPot -= amt;
+      totalPayout += amt;
+      if (player.inPot && compareHands(bestHand, player.curBestHand) == 0)
+        winners.push(j);
+      if (player.chipsInPot == 0 && player.inPot) {
+        lg.numInPot--;
+        player.inPot = false;
+      }
+    }
+    const singlePayout = Math.floor(totalPayout / winners.length);
+    console.log(totalPayout, winners.length, singlePayout);
+    for (let j = 0; j < winners.length; j++) {
+      let player = lobby.players[winners[j]].gameInfo;
+      takeFromPot(lg, player, singlePayout);
+      totalPayout -= singlePayout;
+    }
+    for (let j = lg.dealerChip + 1; j < lobby.players.length; j++) {
+      const isInWinner = (element: number) => element == j;
+      let player = lobby.players[winners[j]].gameInfo;
+      if (totalPayout > 0 && winners.findIndex(isInWinner) != -1) {
+        takeFromPot(lg, player, totalPayout);
+        totalPayout = 0;
+      }
+    }
+    for (let j = 0; j < lg.dealerChip + 1; j++) {
+      const isInWinner = (element: number) => element == j;
+      if (totalPayout > 0 && winners.findIndex(isInWinner) != -1) {
+        let player = lobby.players[winners[j]].gameInfo;
+        takeFromPot(lg, player, totalPayout);
+        totalPayout = 0;
+      }
+    }
+  }
+}
+
 export function endRound(lobby: Lobby) {
   let lg = lobby.gameInfo;
   lg.numPlayedThisRound = 0;
@@ -84,12 +149,12 @@ export function endRound(lobby: Lobby) {
     lobby.players[i].gameInfo.chipsThisRound = 0;
   if (lg.curRound == 1) {
     for (let i = 0; i < 3; i++) deal(lobby);
-    //updatePlayerBestHand();
+    updatePlayerBestHand(lobby);
   } else if (lg.curRound < 4) {
     deal(lobby);
-    //updatePlayerBestHand();
+    updatePlayerBestHand(lobby);
   } else {
-    //showdown();
+    showdown(lobby);
     resetHand(lobby);
   }
 }
@@ -142,26 +207,6 @@ export function takeFromPot(
   player.stack += +x;
   lobby.totalPot -= +x;
 }
-
-// function endRound(lobby: Lobby) {
-//   let lg = lobby.gameInfo;
-//   lg.numPlayedThisRound = 0;
-//   lg.curRound++;
-//   lg.curRaise = -1;
-//   lg.maxChipsThisRound = 0;
-//   for (let i = 0; i < lobby.players.length; i++)
-//     lobby.players[i].gameInfo.chipsThisRound = 0;
-//   if (lg.curRound == 1) {
-//     for (let i = 0; i < 3; i++) deal(lobby);
-//     updatePlayerBestHand();
-//   } else if (curRound < 4) {
-//     deal();
-//     updatePlayerBestHand();
-//   } else {
-//     showdown();
-//     resetHand();
-//   }
-// }
 
 export function resetHand(lobby: Lobby) {
   let players: Player[] = lobby.players;

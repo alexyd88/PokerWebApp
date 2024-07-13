@@ -22,7 +22,6 @@ import {
   startLobby,
 } from "game_logic";
 import { lobbies, messageLists } from "./controllers/lobbies";
-import { bool } from "envalid";
 
 const MONGODB_URI = env.MONGODB_URI;
 
