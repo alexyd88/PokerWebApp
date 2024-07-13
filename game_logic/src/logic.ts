@@ -1,4 +1,4 @@
-import { Card, Lobby, LobbyGameInfo, PlayerGameInfo } from "./index";
+import { Card, Lobby, LobbyGameInfo, Player, PlayerGameInfo } from "./index";
 
 function getRandInt(min: number, max: number) {
   const minCeil = Math.ceil(min);
@@ -49,4 +49,78 @@ export function shuffleAndDeal(lobby: Lobby) {
     playerInfo.fullHand.push(playerInfo.card1);
     playerInfo.fullHand.push(playerInfo.card2);
   }
+}
+
+function findNext(lobby: Lobby, position: number) {
+  for (let i = position + 1; i < 10; i++)
+    if (lobby.seats[i] != -1 && lobby.players[lobby.seats[i]].gameInfo.inPot)
+      return i;
+  for (let i = 0; i < position; i++)
+    if (lobby.seats[i] != -1 && lobby.players[lobby.seats[i]].gameInfo.inPot)
+      return i;
+  console.log("u seriously fucked up theres only one person in this lobby");
+  return position;
+}
+
+function raise(player: PlayerGameInfo, lobby: LobbyGameInfo, x: number): void {
+  player.chipsThisRound += +x;
+  lobby.maxChipsThisRound = Math.max(
+    lobby.maxChipsThisRound,
+    player.chipsThisRound
+  );
+  player.stack -= x;
+  lobby.totalPot += x;
+  player.chipsInPot += +x;
+  lobby.maxChipsInPot = Math.max(lobby.maxChipsInPot, player.chipsInPot);
+}
+
+function call(player: PlayerGameInfo, lobby: LobbyGameInfo): void {
+  const amt = Math.min(player.stack, lobby.maxChipsInPot - player.chipsInPot);
+  player.chipsInPot += +amt;
+  player.chipsThisRound += +amt;
+  lobby.totalPot += +amt;
+  player.stack -= +amt;
+}
+
+function resetHand(lobby: Lobby) {
+  let players: Player[] = lobby.players;
+  let lg = lobby.gameInfo;
+  lg.numInPot = 0;
+  for (let i = 0; i < lobby.players.length; i++) {
+    let player = players[i].gameInfo;
+    player.inPot = player.stack != 0 && !player.away;
+    if (player.inPot) lobby.gameInfo.numInPot++;
+    player.chipsInPot = 0;
+    player.fullHand.length = 0;
+    player.curHandStrength = -1;
+    player.curBestHand.length = 0;
+    player.chipsThisRound = 0;
+  }
+  if (lg.numInPot == 1) {
+    // end game or something
+  }
+  lg.dealerChip = findNext(lobby, lg.dealerChip);
+  lg.board.length = 0;
+  const sb = findNext(lobby, lg.dealerChip);
+  raise(
+    players[sb].gameInfo,
+    lg,
+    Math.min(lg.bigBlind / 2, players[sb].gameInfo.stack)
+  );
+  const bb = findNext(lobby, sb);
+  raise(
+    players[bb].gameInfo,
+    lg,
+    Math.min(lg.bigBlind, players[bb].gameInfo.stack)
+  );
+  lg.curPlayer = findNext(lobby, bb);
+  lg.maxChipsInPot = lg.bigBlind;
+  lg.curRound = 0;
+  lg.curRaise = lg.bigBlind;
+  shuffleAndDeal(lobby);
+}
+
+export function startLobby(lobby: Lobby) {
+  lobby.gameInfo.gameStarted = true;
+  resetHand(lobby);
 }

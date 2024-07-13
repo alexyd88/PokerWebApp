@@ -15,8 +15,9 @@ import {
   createPlayerId,
   messageToString,
   prepareMessageForClient,
-  setPlayerName,
+  setPlayerNameServer,
   sit,
+  startLobby,
 } from "game_logic";
 import { lobbies, messageLists } from "./controllers/lobbies";
 import { bool } from "envalid";
@@ -84,7 +85,8 @@ io.on("connection", (socket) => {
   });
   socket.on("setPlayerName", async (message: Message) => {
     const lobby = lobbies.get(message.playerId.lobbyId);
-    setPlayerName(lobby, message.playerId);
+    console.log(lobby);
+    setPlayerNameServer(lobby, message.playerId);
     addAndReturn(message);
   });
   socket.on("addPlayer", async (message: Message, callback) => {
@@ -124,13 +126,18 @@ io.on("connection", (socket) => {
   });
   socket.on("sit", async (message: Message) => {
     //console.log(message);
-    if (message.type != "action") return;
+    if (message.type != "sit") return;
     sit(
       lobbies.get(message.playerId.lobbyId),
       message.playerId,
-      message.content
+      message.location
     );
 
+    addAndReturn(message);
+  });
+  socket.on("start", async (message: Message) => {
+    let lobby = lobbies.get(message.playerId.lobbyId);
+    startLobby(lobby);
     addAndReturn(message);
   });
 });

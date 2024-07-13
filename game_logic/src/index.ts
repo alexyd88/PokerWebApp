@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 
-export * as Logic from "./logic";
+export * from "./logic";
 
 type MessageCommon = {
   playerId: PlayerId;
@@ -26,8 +26,24 @@ type MessageSetPlayer = {
   type: "setPlayerName";
 };
 
+type MessageSit = {
+  type: "sit";
+  location: number;
+};
+
+type MessageStart = {
+  type: "start";
+};
+
 export type Message = MessageCommon &
-  (MessageAction | MessageChat | MessageAddPlayer | MessageSetPlayer);
+  (
+    | MessageAction
+    | MessageChat
+    | MessageAddPlayer
+    | MessageSetPlayer
+    | MessageSit
+    | MessageStart
+  );
 
 export function messageToString(message: Message): string {
   let x: string =
@@ -136,7 +152,9 @@ export interface LobbyGameInfo {
   maxChipsThisRound: number;
   totalPot: number;
   deck: Card[];
+  board: Card[];
 }
+
 export function createLobbyGameInfo() {
   return {
     maxChipsInPot: 0,
@@ -151,6 +169,7 @@ export function createLobbyGameInfo() {
     maxChipsThisRound: 2,
     totalPot: 3,
     deck: [],
+    board: [],
   };
 }
 
@@ -277,8 +296,12 @@ export function addExistingPlayer(lobby: Lobby, playerId: PlayerId): Player {
   return newPlayer;
 }
 
-export function setPlayerName(lobby: Lobby, playerId: PlayerId): void {
+export function setPlayerNameServer(lobby: Lobby, playerId: PlayerId): void {
   for (let i = 0; i < lobby.players.length; i++)
     if (lobby.players[i].playerId.inGameId == playerId.inGameId)
       lobby.players[i].playerId.name = playerId.name;
+}
+
+export function setPlayerNameClient(lobby: Lobby, playerId: PlayerId): void {
+  lobby.players[playerId.inGameId].playerId.name = playerId.name;
 }
