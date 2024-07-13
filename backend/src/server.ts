@@ -13,8 +13,10 @@ import {
   createChat,
   createPlayerGameInfo,
   createPlayerId,
+  getErrorFromAction,
   messageToString,
   prepareMessageForClient,
+  runAction,
   setPlayerNameServer,
   sit,
   startLobby,
@@ -59,6 +61,9 @@ function addAndReturn(message: Message) {
   addMessage(message);
   io.in(message.playerId.lobbyId).emit(
     "message",
+    prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
+  );
+  console.log(
     prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
   );
 }
@@ -138,6 +143,18 @@ io.on("connection", (socket) => {
   socket.on("start", async (message: Message) => {
     let lobby = lobbies.get(message.playerId.lobbyId);
     startLobby(lobby);
+    addAndReturn(message);
+  });
+  socket.on("action", async (message: Message) => {
+    let lobby = lobbies.get(message.playerId.lobbyId);
+    if (
+      lobby.seats[lobby.gameInfo.curPlayer] != message.playerId.inGameId ||
+      getErrorFromAction(lobby, message) != "success"
+    ) {
+      console.log("U ARE TROLLING ME");
+      return;
+    }
+    runAction(lobby, message);
     addAndReturn(message);
   });
 });

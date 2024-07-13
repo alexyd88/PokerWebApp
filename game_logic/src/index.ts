@@ -1,4 +1,13 @@
 import { v4 as uuidv4 } from "uuid";
+import {
+  call,
+  endRound,
+  findNext,
+  isValidRaise,
+  raise,
+  resetHand,
+  takeFromPot,
+} from "./logic";
 
 export * from "./logic";
 
@@ -17,6 +26,20 @@ type MessageAction = {
   action: string;
   content: number;
 };
+
+export function createMessageAction(
+  playerId: PlayerId,
+  action: string,
+  content: number
+): Message {
+  return {
+    playerId: playerId,
+    id: -1,
+    type: "action",
+    action: action,
+    content: content,
+  };
+}
 
 type MessageAddPlayer = {
   type: "addPlayer";
@@ -252,8 +275,8 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     chipsInPot: 0,
     chipsThisRound: 0,
     inPot: false,
-    card1: { num: -1, suit: "oops", numDisplay: "oops2" },
-    card2: { num: -1, suit: "oops", numDisplay: "oops2" },
+    card1: { num: 999, suit: "oops", numDisplay: "oops2" },
+    card2: { num: 999, suit: "oops", numDisplay: "oops2" },
     fullHand: [],
     curBestHand: [],
     curHandStrength: -1,
@@ -304,4 +327,114 @@ export function setPlayerNameServer(lobby: Lobby, playerId: PlayerId): void {
 
 export function setPlayerNameClient(lobby: Lobby, playerId: PlayerId): void {
   lobby.players[playerId.inGameId].playerId.name = playerId.name;
+}
+
+export function getErrorFromAction(lobby: Lobby, message: Message): string {
+  if (message.type != "action") {
+    console.log("PLEASE HOW ARE U HERE");
+    return "WTF";
+  }
+  let lg: LobbyGameInfo = lobby.gameInfo;
+  let curPlayer: PlayerGameInfo =
+    lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
+  switch (message.action) {
+    case "raise": {
+      if (!isValidRaise(lobby, message.content)) {
+        return (
+          "Invalid Raise, must raise to at least " +
+          Math.max(lg.maxChipsThisRound + lg.curRaise, lg.bigBlind) +
+          " and up to idk"
+        );
+      }
+      break;
+    }
+    case "check":
+      {
+        if (
+          curPlayer.chipsThisRound != lg.maxChipsThisRound &&
+          curPlayer.stack != 0
+        ) {
+          lg.numPlayedThisRound--;
+          return "Cannot check";
+        }
+      }
+      break;
+  }
+  return "success";
+}
+
+export function runAction(lobby: Lobby, message: Message): string {
+  if (message.type != "action") {
+    console.log("PLEASE HOW ARE U HERE");
+    return "WTF";
+  }
+  let lg: LobbyGameInfo = lobby.gameInfo;
+  let curPlayer: PlayerGameInfo =
+    lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
+  lg.numPlayedThisRound++;
+  switch (message.action) {
+    case "raise": {
+      if (isValidRaise(lobby, message.content)) {
+        lg.curRaise = Math.max(
+          lg.curRaise,
+          message.content - lg.maxChipsThisRound
+        );
+        raise(curPlayer, lg, message.content - curPlayer.chipsThisRound);
+      } else {
+        lg.numPlayedThisRound--;
+        console.log("PLEASE HOW ARE U HERE");
+        return (
+          "Invalid Raise, must raise to at least " +
+          Math.max(lg.maxChipsThisRound + lg.curRaise, lg.bigBlind) +
+          " and up to idk"
+        );
+      }
+      break;
+    }
+    case "call": {
+      call(curPlayer, lobby.gameInfo);
+      break;
+    }
+    case "fold": {
+      curPlayer.inPot = false;
+      lg.numInPot--;
+      if (lg.numInPot == 1) {
+        for (let i = 0; i < lobby.players.length; i++)
+          if (lobby.players[i].gameInfo.inPot) {
+            takeFromPot(lg, lobby.players[i].gameInfo, lg.totalPot);
+          }
+        resetHand(lobby);
+      }
+      break;
+    }
+    case "check":
+      {
+        if (
+          curPlayer.chipsThisRound != lg.maxChipsThisRound &&
+          curPlayer.stack != 0
+        ) {
+          lg.numPlayedThisRound--;
+          return "Cannot check";
+        }
+      }
+      break;
+  }
+  let doneRound = true;
+  if (lg.numPlayedThisRound < lg.numInPot) doneRound = false;
+  else {
+    for (let i = 0; i < lobby.players.length; i++) {
+      if (
+        lobby.players[i].gameInfo.stack != 0 &&
+        lobby.players[i].gameInfo.inPot &&
+        lobby.players[i].gameInfo.chipsThisRound != lg.maxChipsThisRound
+      ) {
+        doneRound = false;
+      }
+    }
+  }
+  if (doneRound) endRound(lobby);
+  lg.curPlayer = findNext(lobby, lg.curPlayer);
+  curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
+  //implement autocheck if only one person has chips
+  return "success";
 }

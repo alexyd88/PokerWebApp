@@ -12,6 +12,9 @@ import {
   createPlayerId,
   startLobby,
   setPlayerNameClient,
+  createMessageAction,
+  runAction,
+  getErrorFromAction,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -41,10 +44,27 @@ export function Lobby() {
   function startSubmit() {
     handleButton("startSubmit");
   }
+  function raise() {
+    handleButton("raise");
+  }
+  function call() {
+    handleButton("call");
+  }
+  function fold() {
+    handleButton("fold");
+  }
+  function check() {
+    handleButton("check");
+  }
+
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
     console.log("playerId", playerId);
     console.log("lobby", lobby);
+    if (playerId == null) {
+      console.log("HOWTF");
+      return;
+    }
     switch (button) {
       case "sayHi": {
         if (playerId != null && lobby != null) {
@@ -99,16 +119,35 @@ export function Lobby() {
         break;
       }
       case "startSubmit": {
-        if (playerId == null) {
-          console.log("HOWTF");
-          return;
-        }
         const message: Message = {
           type: "start",
           id: -1,
           playerId: playerId,
         };
         socket?.emit("start", message);
+        break;
+      }
+      case "raise":
+      case "call":
+      case "fold":
+      case "check": {
+        if (lobby.seats[lobby.gameInfo.curPlayer] != playerId.inGameId) {
+          displayWarning("not your turn lmao");
+          return;
+        }
+        const amt = document.getElementById("raise_size") as HTMLInputElement;
+        const message: Message = createMessageAction(
+          playerId,
+          button,
+          button == "raise" ? Number(amt.value) : 0
+        );
+        const error: string = getErrorFromAction(lobby, message);
+        if (error != "success") {
+          displayWarning(error);
+        } else {
+          socket?.emit("action", message);
+        }
+        break;
       }
     }
     setReactLobby(lobby);
@@ -157,6 +196,11 @@ export function Lobby() {
       }
       case "start": {
         startLobby(lobby);
+        break;
+      }
+      case "action": {
+        runAction(lobby, message);
+        break;
       }
     }
   }
@@ -214,11 +258,6 @@ export function Lobby() {
 
   return (
     <div>
-      {reactLobby?.host == playerId?.inGameId ? (
-        <button onClick={startSubmit}>start</button>
-      ) : (
-        <div> you are not host </div>
-      )}
       {reactLobby?.players.map((Player, index) => (
         <li key={index}>
           <div>
@@ -259,6 +298,24 @@ export function Lobby() {
       <input type="text" id="seat" />
       <button onClick={sitSubmit}>sit</button>
       <div id="illegal"></div>
+      <input
+        type="number"
+        id="raise_size"
+        placeholder="raise size"
+        min="1"
+      ></input>
+      <div></div>
+      <button onClick={raise}>raise</button>
+      <button onClick={fold}>fold</button>
+      <button onClick={call}>call</button>
+      <button onClick={check}>check</button>
+      <div></div>
+      {reactLobby?.host == playerId?.inGameId ? (
+        <button onClick={startSubmit}>start</button>
+      ) : (
+        <div> you are not host </div>
+      )}
+      <ul></ul>
     </div>
   );
 }

@@ -35,23 +35,35 @@ export function shuffleAndDeal(lobby: Lobby) {
     const j = getRandInt(i, deck.length);
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
-  const card1: Card | undefined = deck.pop();
-  const card2: Card | undefined = deck.pop();
-  if (card1 == undefined || card2 == undefined) {
-    console.log("ran out of cards?? how tf");
-    return;
-  }
   for (let i = 0; i < players.length; i++) {
+    const card1: Card | undefined = deck.pop();
+    const card2: Card | undefined = deck.pop();
+    if (card1 == undefined || card2 == undefined) {
+      console.log("ran out of cards?? how tf");
+      return;
+    }
     const playerInfo: PlayerGameInfo = players[i].gameInfo;
     if (playerInfo.away) continue;
     playerInfo.card1 = card1;
     playerInfo.card2 = card2;
     playerInfo.fullHand.push(playerInfo.card1);
     playerInfo.fullHand.push(playerInfo.card2);
+
+    console.log("dealt");
   }
 }
 
-function findNext(lobby: Lobby, position: number) {
+function deal(lobby: Lobby) {
+  //sleep(500);
+  let lg = lobby.gameInfo;
+  const newCard = lg.deck.pop() as Card;
+  lg.board.push(newCard);
+  for (let i = 0; i < lobby.players.length; i++) {
+    lobby.players[i].gameInfo.fullHand.push(newCard);
+  }
+}
+
+export function findNext(lobby: Lobby, position: number) {
   for (let i = position + 1; i < 10; i++)
     if (lobby.seats[i] != -1 && lobby.players[lobby.seats[i]].gameInfo.inPot)
       return i;
@@ -62,7 +74,31 @@ function findNext(lobby: Lobby, position: number) {
   return position;
 }
 
-function raise(player: PlayerGameInfo, lobby: LobbyGameInfo, x: number): void {
+export function endRound(lobby: Lobby) {
+  let lg = lobby.gameInfo;
+  lg.numPlayedThisRound = 0;
+  lg.curRound++;
+  lg.curRaise = -1;
+  lg.maxChipsThisRound = 0;
+  for (let i = 0; i < lobby.players.length; i++)
+    lobby.players[i].gameInfo.chipsThisRound = 0;
+  if (lg.curRound == 1) {
+    for (let i = 0; i < 3; i++) deal(lobby);
+    //updatePlayerBestHand();
+  } else if (lg.curRound < 4) {
+    deal(lobby);
+    //updatePlayerBestHand();
+  } else {
+    //showdown();
+    resetHand(lobby);
+  }
+}
+
+export function raise(
+  player: PlayerGameInfo,
+  lobby: LobbyGameInfo,
+  x: number
+): void {
   player.chipsThisRound += +x;
   lobby.maxChipsThisRound = Math.max(
     lobby.maxChipsThisRound,
@@ -74,7 +110,7 @@ function raise(player: PlayerGameInfo, lobby: LobbyGameInfo, x: number): void {
   lobby.maxChipsInPot = Math.max(lobby.maxChipsInPot, player.chipsInPot);
 }
 
-function call(player: PlayerGameInfo, lobby: LobbyGameInfo): void {
+export function call(player: PlayerGameInfo, lobby: LobbyGameInfo): void {
   const amt = Math.min(player.stack, lobby.maxChipsInPot - player.chipsInPot);
   player.chipsInPot += +amt;
   player.chipsThisRound += +amt;
@@ -82,13 +118,59 @@ function call(player: PlayerGameInfo, lobby: LobbyGameInfo): void {
   player.stack -= +amt;
 }
 
-function resetHand(lobby: Lobby) {
+export function isValidRaise(lobby: Lobby, a: number) {
+  let players: Player[] = lobby.players;
+  let lg = lobby.gameInfo;
+  let player: PlayerGameInfo = players[lobby.seats[lg.curPlayer]].gameInfo;
+  if (a - player.chipsThisRound > player.stack) return false;
+  if (a - player.chipsThisRound == player.stack) return true;
+  if (lg.curRaise == -1) {
+    return a >= lg.bigBlind;
+  }
+  return (
+    Number.isInteger(a) &&
+    a >= Math.max(lg.maxChipsThisRound + +lg.curRaise, lg.bigBlind)
+  );
+  //idk if this logic is real tbh
+}
+
+export function takeFromPot(
+  lobby: LobbyGameInfo,
+  player: PlayerGameInfo,
+  x: number
+) {
+  player.stack += +x;
+  lobby.totalPot -= +x;
+}
+
+// function endRound(lobby: Lobby) {
+//   let lg = lobby.gameInfo;
+//   lg.numPlayedThisRound = 0;
+//   lg.curRound++;
+//   lg.curRaise = -1;
+//   lg.maxChipsThisRound = 0;
+//   for (let i = 0; i < lobby.players.length; i++)
+//     lobby.players[i].gameInfo.chipsThisRound = 0;
+//   if (lg.curRound == 1) {
+//     for (let i = 0; i < 3; i++) deal(lobby);
+//     updatePlayerBestHand();
+//   } else if (curRound < 4) {
+//     deal();
+//     updatePlayerBestHand();
+//   } else {
+//     showdown();
+//     resetHand();
+//   }
+// }
+
+export function resetHand(lobby: Lobby) {
   let players: Player[] = lobby.players;
   let lg = lobby.gameInfo;
   lg.numInPot = 0;
   for (let i = 0; i < lobby.players.length; i++) {
     let player = players[i].gameInfo;
-    player.inPot = player.stack != 0 && !player.away;
+    player.away = player.stack == 0;
+    player.inPot = !player.away;
     if (player.inPot) lobby.gameInfo.numInPot++;
     player.chipsInPot = 0;
     player.fullHand.length = 0;
@@ -103,15 +185,15 @@ function resetHand(lobby: Lobby) {
   lg.board.length = 0;
   const sb = findNext(lobby, lg.dealerChip);
   raise(
-    players[sb].gameInfo,
+    players[lobby.seats[sb]].gameInfo,
     lg,
-    Math.min(lg.bigBlind / 2, players[sb].gameInfo.stack)
+    Math.min(lg.bigBlind / 2, players[lobby.seats[sb]].gameInfo.stack)
   );
   const bb = findNext(lobby, sb);
   raise(
-    players[bb].gameInfo,
+    players[lobby.seats[bb]].gameInfo,
     lg,
-    Math.min(lg.bigBlind, players[bb].gameInfo.stack)
+    Math.min(lg.bigBlind, players[lobby.seats[bb]].gameInfo.stack)
   );
   lg.curPlayer = findNext(lobby, bb);
   lg.maxChipsInPot = lg.bigBlind;
