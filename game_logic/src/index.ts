@@ -112,7 +112,7 @@ export function sit(lobby: Lobby, playerId: PlayerId, seat: number): void {
   }
   console.log("SHOULD SET ");
   lobby.seats[seat] = playerId.inGameId;
-  lobby.players[playerId.inGameId].playerId.seat = -1;
+  lobby.players[playerId.inGameId].playerId.seat = seat;
   playerId.seat = seat;
 }
 

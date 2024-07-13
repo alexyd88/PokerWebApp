@@ -22,8 +22,9 @@ export function Lobby() {
   const lobbyId = useParams().lobbyId;
   const [reactLobby, setReactLobby] = useState<Lobby | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [playerId, setPlayerId] = useState<PlayerId | null>(null);
+  const [reactPlayerId, setPlayerId] = useState<PlayerId | null>(null);
   let lobby: Lobby = createLobbyClient("LMAO DUMBASS");
+  let playerId: PlayerId | null = null;
   if (lobbyId != null) lobby = createLobbyClient(lobbyId);
   function displayWarning(warning: string) {
     const illegalWarning = document.getElementById("illegal");
@@ -59,6 +60,7 @@ export function Lobby() {
 
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
+    playerId = JSON.parse(JSON.stringify(reactPlayerId));
     console.log("playerId", playerId);
     console.log("lobby", lobby);
     if (playerId == null) {
@@ -151,10 +153,12 @@ export function Lobby() {
       }
     }
     setReactLobby(lobby);
+    console.log("gonna set pid to ", playerId);
     setPlayerId(playerId);
   }
 
   function emitRetryAddPlayer(socket: Socket, message: Message) {
+    const id: string = message.playerId.id;
     socket.emit("addPlayer", message, (response: { err: boolean }) => {
       if (response == null) {
         console.log("how the fuck");
@@ -163,13 +167,27 @@ export function Lobby() {
         message.playerId.inGameId++;
         emitRetryAddPlayer(socket, message);
       } else {
-        setPlayerId(message.playerId);
-        console.log("MY ACTUALY PID", message.playerId);
+        if (lobbyId == null) {
+          console.log("TROLL");
+          return;
+        }
+        playerId = {
+          lobbyId: lobbyId,
+          id: id,
+          inGameId: message.playerId.inGameId,
+          seat: -1,
+          name: "GUEST",
+        };
+        console.log("gonna set pid to ", playerId);
+        setPlayerId(playerId);
+        console.log("MY ACTUALY PID", playerId);
       }
     });
   }
 
   function handleMessage(message: Message) {
+    if (reactPlayerId != null)
+      playerId = JSON.parse(JSON.stringify(reactPlayerId));
     if (lobby == null) return;
     console.log("received", message);
     switch (message.type) {
@@ -184,6 +202,10 @@ export function Lobby() {
           lobby.players[message.playerId.inGameId].playerId,
           message.location
         );
+        if (playerId?.inGameId == message.playerId.inGameId)
+          playerId.seat = message.location;
+        console.log("gonna set pid to ", playerId);
+        setPlayerId(playerId);
         break;
       }
       case "addPlayer": {
@@ -276,8 +298,8 @@ export function Lobby() {
         </li>
       ))}
 
-      {playerId != null
-        ? "name: " + playerId.name + " seat: " + playerId.seat
+      {reactPlayerId != null
+        ? "name: " + reactPlayerId.name + " seat: " + reactPlayerId.seat
         : "placeholder, join below"}
       {reactLobby?.messages.map((message, index) => {
         return <div key={index}>{messageToString(message)}</div>;
@@ -310,7 +332,7 @@ export function Lobby() {
       <button onClick={call}>call</button>
       <button onClick={check}>check</button>
       <div></div>
-      {reactLobby?.host == playerId?.inGameId ? (
+      {reactLobby?.host == reactPlayerId?.inGameId ? (
         <button onClick={startSubmit}>start</button>
       ) : (
         <div> you are not host </div>
