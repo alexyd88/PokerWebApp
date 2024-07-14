@@ -6,6 +6,7 @@ import {
   isValidRaise,
   raise,
   resetHand,
+  startLobby,
   takeFromPot,
 } from "./logic";
 import { strengthToString } from "./handEval";
@@ -390,9 +391,21 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
     return "WTF";
   }
   let lg: LobbyGameInfo = lobby.gameInfo;
-  let curPlayer: PlayerGameInfo =
+  let curPlayer: PlayerGameInfo = createPlayerGameInfo();
+  if (message.action != "start")
     lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
   switch (message.action) {
+    case "start": {
+      let numPlayers = 0;
+      for (let i = 0; i < lobby.players.length; i++)
+        if (
+          !lobby.players[i].gameInfo.away &&
+          lobby.players[i].gameInfo.stack != 0
+        )
+          numPlayers++;
+      if (numPlayers < 2) return "Not enough players";
+      break;
+    }
     case "raise": {
       if (!isValidRaise(lobby, message.content)) {
         return (
@@ -433,10 +446,16 @@ export function runAction(
     return null;
   }
   let lg: LobbyGameInfo = lobby.gameInfo;
-  let curPlayer: PlayerGameInfo =
-    lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
+
   lg.numPlayedThisRound++;
+  let curPlayer: PlayerGameInfo = createPlayerGameInfo();
+  if (message.action != "start")
+    curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
   switch (message.action) {
+    case "start": {
+      startLobby(lobby, isClient);
+      return { cards: [], calledReset: true };
+    }
     case "raise": {
       if (isValidRaise(lobby, message.content)) {
         lg.curRaise = Math.max(

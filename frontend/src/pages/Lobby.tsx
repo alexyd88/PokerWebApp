@@ -46,8 +46,8 @@ export function Lobby() {
   function sitSubmit() {
     handleButton("sitSubmit");
   }
-  function startSubmit() {
-    handleButton("startSubmit");
+  function start() {
+    handleButton("start");
   }
   function raise() {
     handleButton("raise");
@@ -103,6 +103,7 @@ export function Lobby() {
         break;
       }
       case "sitSubmit": {
+        console.log(lobby.players, playerId.inGameId);
         const seat: HTMLInputElement = document.getElementById(
           "seat"
         ) as HTMLInputElement;
@@ -124,20 +125,15 @@ export function Lobby() {
         }
         break;
       }
-      case "startSubmit": {
-        const message: Message = {
-          type: "start",
-          id: -1,
-          playerId: playerId,
-        };
-        socket?.emit("start", message);
-        break;
-      }
+      case "start":
       case "raise":
       case "call":
       case "fold":
       case "check": {
-        if (lobby.seats[lobby.gameInfo.curPlayer] != playerId.inGameId) {
+        if (
+          button != "start" &&
+          lobby.seats[lobby.gameInfo.curPlayer] != playerId.inGameId
+        ) {
           displayWarning("not your turn lmao");
           return;
         }
@@ -342,7 +338,7 @@ export function Lobby() {
       <button onClick={check}>check</button>
       <div></div>
       {reactLobby?.host == reactPlayerId?.inGameId ? (
-        <button onClick={startSubmit}>start</button>
+        <button onClick={start}>start</button>
       ) : (
         <div> you are not host </div>
       )}

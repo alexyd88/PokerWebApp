@@ -62,29 +62,27 @@ function addAndReturn(
   location: string | null,
   except: string | null
 ) {
-  if (except == null)
-    //this is the main one with the info
-    addMessage(message);
   if (location == null) location = message.playerId.lobbyId;
-  if (except != null) {
+  if (except == null) {
+    addMessage(message);
+    io.in(location).emit(
+      "message",
+      prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
+    );
+  } else {
     io.in(location)
       .except(except)
       .emit(
         "message",
         prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
       );
-  } else {
-    io.in(location).emit(
-      "message",
-      prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
-    );
   }
 
   console.log(
     "WILL SEND TO",
     location,
     "EXCEPT",
-    location,
+    except,
     prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
   );
 }
@@ -188,22 +186,20 @@ io.on("connection", (socket) => {
 
     addAndReturn(message, null, null);
   });
-  socket.on("start", async (message: Message) => {
-    let lobby = lobbies.get(message.playerId.lobbyId);
-    startLobby(lobby, false);
-    addAndReturn(message, null, null);
-    sendUpdateHoleCards(lobby, message);
-  });
   socket.on("action", async (message: Message) => {
     let lobby = lobbies.get(message.playerId.lobbyId);
+    if (message.type != "action") {
+      console.log("WTF");
+      return;
+    }
     if (
-      lobby.seats[lobby.gameInfo.curPlayer] != message.playerId.inGameId ||
+      (lobby.seats[lobby.gameInfo.curPlayer] != message.playerId.inGameId &&
+        message.action != "start") ||
       getErrorFromAction(lobby, message) != "success"
     ) {
       console.log("U ARE TROLLING ME");
       return;
     }
-    addAndReturn(message, null, null);
     const actionResult: ActionResult = runAction(lobby, message, false);
     if (actionResult == null) {
       console.log("WHAT THE FUCK");
@@ -223,6 +219,7 @@ io.on("connection", (socket) => {
       let lobby = lobbies.get(message.playerId.lobbyId);
       sendUpdateHoleCards(lobby, message);
     }
+    addAndReturn(message, null, null);
   });
 });
 
