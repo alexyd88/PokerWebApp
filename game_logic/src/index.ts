@@ -140,7 +140,6 @@ export function sit(lobby: Lobby, playerId: PlayerId, seat: number): void {
     console.log("seat full hacker");
     return;
   }
-  console.log("SHOULD SET ");
   lobby.seats[seat] = playerId.inGameId;
   lobby.players[playerId.inGameId].playerId.seat = seat;
   playerId.seat = seat;

@@ -92,6 +92,7 @@ function sendUpdateHoleCards(lobby: Lobby, message: Message) {
   };
   for (let i = 0; i < lobby.players.length; i++) {
     cardMessage.playerId.inGameId = i;
+    cardMessage.cards = lobby.players[i].gameInfo.fullHand;
     addAndReturn(
       cardMessage,
       socketList.get(lobby.id)[lobby.players[i].playerId.inGameId],
