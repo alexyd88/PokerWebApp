@@ -113,7 +113,11 @@ export function prepareMessageForClient(
   if (
     lobby.players[message.playerId.inGameId].playerId.id != message.playerId.id
   ) {
-    console.log("id doesn't match hacker");
+    console.log(
+      "id doesn't match hacker",
+      message.playerId,
+      lobby.players[message.playerId.inGameId].playerId
+    );
     console.log(
       lobby.players[message.playerId.inGameId].playerId.id,
       message.playerId.id
@@ -393,7 +397,7 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
   let lg: LobbyGameInfo = lobby.gameInfo;
   let curPlayer: PlayerGameInfo = createPlayerGameInfo();
   if (message.action != "start")
-    lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
+    curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
   switch (message.action) {
     case "start": {
       let numPlayers = 0;
@@ -418,6 +422,14 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
     }
     case "check":
       {
+        console.log(
+          lg.curPlayer,
+          lobby.seats[lg.curPlayer],
+          lobby.players[lobby.seats[lg.curPlayer]],
+          curPlayer,
+          curPlayer.chipsThisRound,
+          lg.maxChipsThisRound
+        );
         if (
           curPlayer.chipsThisRound != lg.maxChipsThisRound &&
           curPlayer.stack != 0
@@ -512,10 +524,9 @@ export function runAction(
       }
     }
   }
-  let actionResult: ActionResult | null = null;
-  if (doneRound) actionResult = endRound(lobby, isClient);
+  let actionResult: ActionResult = { cards: [], calledReset: false };
   lg.curPlayer = findNext(lobby, lg.curPlayer);
-  curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
+  if (doneRound) actionResult = endRound(lobby, isClient);
   //implement autocheck if only one person has chips
   return actionResult;
 }

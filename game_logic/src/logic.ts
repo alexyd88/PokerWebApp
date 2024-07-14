@@ -266,6 +266,7 @@ export function resetHand(lobby: Lobby, isClient: boolean) {
   lg.maxChipsInPot = lg.bigBlind;
   lg.curRound = 0;
   lg.curRaise = lg.bigBlind;
+  lg.numPlayedThisRound = 0;
   if (!isClient) shuffleAndDeal(lobby);
 }
 

@@ -50,11 +50,6 @@ function addMessage(message: Message) {
   messageLists
     .get(message.playerId.lobbyId)
     .push(prepareMessageForClient(lobby, message));
-  console.log(
-    "gonna add",
-    message.playerId.lobbyId,
-    messageToString(prepareMessageForClient(lobby, message))
-  );
 }
 
 function addAndReturn(
@@ -88,28 +83,26 @@ function addAndReturn(
 }
 
 function sendUpdateHoleCards(lobby: Lobby, message: Message) {
+  let cardMessage: Message = {
+    playerId: JSON.parse(JSON.stringify(message.playerId)),
+    type: "newCards",
+    id: -1,
+    cards: lobby.players[0].gameInfo.fullHand,
+    isCommunity: false,
+  };
   for (let i = 0; i < lobby.players.length; i++) {
-    if (lobby.players[i].gameInfo.fullHand.length != 0) {
-      const cardMessage: Message = {
-        playerId: message.playerId,
-        type: "newCards",
-        id: -1,
-        cards: lobby.players[i].gameInfo.fullHand,
-        isCommunity: false,
-      };
-      cardMessage.playerId.inGameId = i;
-      addAndReturn(
-        cardMessage,
-        socketList.get(lobby.id)[lobby.players[i].playerId.inGameId],
-        null
-      );
-      cardMessage.cards = [];
-      addAndReturn(
-        cardMessage,
-        null,
-        socketList.get(lobby.id)[lobby.players[i].playerId.inGameId]
-      );
-    }
+    cardMessage.playerId.inGameId = i;
+    addAndReturn(
+      cardMessage,
+      socketList.get(lobby.id)[lobby.players[i].playerId.inGameId],
+      null
+    );
+    cardMessage.cards = [];
+    addAndReturn(
+      cardMessage,
+      null,
+      socketList.get(lobby.id)[lobby.players[i].playerId.inGameId]
+    );
   }
 }
 
@@ -205,6 +198,7 @@ io.on("connection", (socket) => {
       console.log("WHAT THE FUCK");
       return;
     }
+    console.log("HEY BRO", actionResult.cards, actionResult.calledReset);
     if (actionResult.cards.length != 0) {
       const cardMessage: Message = {
         playerId: message.playerId,

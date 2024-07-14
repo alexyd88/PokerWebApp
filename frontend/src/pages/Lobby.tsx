@@ -148,6 +148,7 @@ export function Lobby() {
           displayWarning(error);
         } else {
           socket?.emit("action", message);
+          console.log("sent this", message);
         }
         break;
       }
