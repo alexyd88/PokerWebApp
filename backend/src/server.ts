@@ -8,7 +8,13 @@ import app from "./app";
 import env from "./util/validateEnv";
 import { Server } from "socket.io";
 import { createServer } from "node:http";
-import type { ActionResult, Lobby, Message, Player } from "game_logic";
+import type {
+  ActionResult,
+  Lobby,
+  Message,
+  Player,
+  ShowCards,
+} from "game_logic";
 import {
   createChat,
   createPlayerGameInfo,
@@ -16,10 +22,10 @@ import {
   getErrorFromAction,
   messageToString,
   prepareMessageForClient,
+  resetHand,
   runAction,
   setPlayerNameServer,
   sit,
-  startLobby,
 } from "game_logic";
 import { lobbies, messageLists, socketList } from "./controllers/lobbies";
 import { send } from "node:process";
@@ -44,11 +50,12 @@ const io = new Server(server, {
 });
 
 function addMessage(message: Message) {
-  const lobby = lobbies.get(message.playerId.lobbyId);
+  const lobby = lobbies.get(message.lobbyId);
   message.id = lobby.messages.length;
   lobby.messages.push(message);
+  console.log(messageToString(message));
   messageLists
-    .get(message.playerId.lobbyId)
+    .get(message.lobbyId)
     .push(prepareMessageForClient(lobby, message));
 }
 
@@ -57,39 +64,34 @@ function addAndReturn(
   location: string | null,
   except: string | null
 ) {
-  if (location == null) location = message.playerId.lobbyId;
+  if (location == null) location = message.lobbyId;
   if (except == null) {
     addMessage(message);
     io.in(location).emit(
       "message",
-      prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
+      prepareMessageForClient(lobbies.get(message.lobbyId), message)
     );
   } else {
     io.in(location)
       .except(except)
       .emit(
         "message",
-        prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
+        prepareMessageForClient(lobbies.get(message.lobbyId), message)
       );
   }
   //console.log("WILL SEND TO", location, "EXCEPT", except);
-  console.log(
-    messageToString(
-      prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
-    )
-  );
 }
 
-function sendUpdateHoleCards(lobby: Lobby, message: Message) {
+function sendReset(lobby: Lobby, message: Message) {
   let cardMessage: Message = {
     playerId: JSON.parse(JSON.stringify(message.playerId)),
-    type: "newCards",
+    type: "reset",
+    lobbyId: message.lobbyId,
     id: -1,
     cards: lobby.players[0].gameInfo.fullHand,
-    isCommunity: false,
   };
   for (let i = 0; i < lobby.players.length; i++) {
-    cardMessage.playerId.inGameId = i;
+    cardMessage.playerId = lobby.players[i].playerId;
     cardMessage.cards = lobby.players[i].gameInfo.fullHand;
     addAndReturn(
       cardMessage,
@@ -99,17 +101,28 @@ function sendUpdateHoleCards(lobby: Lobby, message: Message) {
     cardMessage.cards = [];
     addAndReturn(
       cardMessage,
-      null,
+      lobby.id,
       socketList.get(lobby.id)[lobby.players[i].playerId.inGameId]
     );
   }
+}
+
+function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
+  let cardMessage: Message = {
+    type: "showCards",
+    cardsShown: cardsShown,
+    lobbyId: lobby.id,
+    id: -1,
+    playerId: null,
+  };
+  addAndReturn(cardMessage, lobby.id, null);
 }
 
 io.on("connection", (socket) => {
   console.log("user connected", Date.now());
   socket.on("getMessages", async (lobbyId: string, callback) => {
     let messages: Message[] = messageLists.get(lobbyId);
-    console.log(lobbyId, messageLists.get(lobbyId));
+    //console.log(lobbyId, messageLists.get(lobbyId));
     callback({
       messages: messages,
     });
@@ -119,15 +132,15 @@ io.on("connection", (socket) => {
     socket.join(room);
   });
   socket.on("chat", async (message: Message) => {
-    if (!lobbies.has(message.playerId.lobbyId)) {
+    if (!lobbies.has(message.lobbyId)) {
       console.log("how was lobby not created yet");
     }
     //console.log(lobbies.get(message.playerId.lobbyId).players);
     addAndReturn(message, null, null);
   });
   socket.on("setPlayerName", async (message: Message) => {
-    const lobby = lobbies.get(message.playerId.lobbyId);
-    console.log(lobby);
+    const lobby = lobbies.get(message.lobbyId);
+    //console.log(lobby);
     setPlayerNameServer(lobby, message.playerId);
     addAndReturn(message, null, null);
   });
@@ -136,11 +149,11 @@ io.on("connection", (socket) => {
       console.log("how did u get here bro");
       return;
     }
-    if (!lobbies.has(message.playerId.lobbyId)) {
+    if (!lobbies.has(message.lobbyId)) {
       console.log("how was lobby not created yet");
       return;
     }
-    const lobby = lobbies.get(message.playerId.lobbyId);
+    const lobby = lobbies.get(message.lobbyId);
     let player: Player = {
       playerId: createPlayerId(lobby, "GUEST", message.playerId.id),
       gameInfo: createPlayerGameInfo(),
@@ -159,7 +172,7 @@ io.on("connection", (socket) => {
       err = true;
     } else {
       lobby.players.push(player);
-      socketList.get(message.playerId.lobbyId).push(socket.id);
+      socketList.get(message.lobbyId).push(socket.id);
       addAndReturn(message, null, null);
     }
 
@@ -170,16 +183,12 @@ io.on("connection", (socket) => {
   socket.on("sit", async (message: Message) => {
     //console.log(message);
     if (message.type != "sit") return;
-    sit(
-      lobbies.get(message.playerId.lobbyId),
-      message.playerId,
-      message.location
-    );
+    sit(lobbies.get(message.lobbyId), message.playerId, message.location);
 
     addAndReturn(message, null, null);
   });
   socket.on("action", async (message: Message) => {
-    let lobby = lobbies.get(message.playerId.lobbyId);
+    let lobby = lobbies.get(message.lobbyId);
     if (message.type != "action") {
       console.log("WTF");
       return;
@@ -200,17 +209,22 @@ io.on("connection", (socket) => {
     addAndReturn(message, null, null);
     if (actionResult.cards.length != 0) {
       const cardMessage: Message = {
-        playerId: message.playerId,
-        type: "newCards",
+        type: "newCommunityCards",
+        playerId: null,
+        lobbyId: message.lobbyId,
         id: -1,
         cards: actionResult.cards,
-        isCommunity: true,
       };
       addAndReturn(cardMessage, null, null);
     }
-    if (actionResult.calledReset) {
-      let lobby = lobbies.get(message.playerId.lobbyId);
-      sendUpdateHoleCards(lobby, message);
+    if (message.action == "start") {
+      sendReset(lobby, message);
+    }
+    if (actionResult.calledHandEnd) {
+      let lobby = lobbies.get(message.lobbyId);
+      sendCardsShown(lobby, actionResult.cardsShown);
+      resetHand(lobby, false);
+      setTimeout(sendReset, 3000, lobby, message);
     }
   });
 });

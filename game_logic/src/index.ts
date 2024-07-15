@@ -6,7 +6,6 @@ import {
   isValidRaise,
   raise,
   resetHand,
-  startLobby,
   takeFromPot,
 } from "./logic";
 import { strengthToString } from "./handEval";
@@ -16,8 +15,8 @@ export * from "./logic";
 export * from "./handEval";
 
 type MessageCommon = {
-  playerId: PlayerId;
   id: number;
+  lobbyId: string;
 };
 
 type MessageChat = {
@@ -31,20 +30,36 @@ type MessageAction = {
   content: number;
 };
 
-type MessageNewCards = {
-  type: "newCards";
-  id: number;
+type MessageNewCommunityCards = {
+  type: "newCommunityCards";
   cards: Card[];
-  isCommunity: boolean;
+};
+
+export type ShowCards = {
+  inGameId: number;
+  card1: Card;
+  card2: Card;
+};
+
+type MessageShowCards = {
+  type: "showCards";
+  cardsShown: ShowCards[];
+};
+
+type MessageReset = {
+  type: "reset";
+  cards: Card[];
 };
 
 export function createMessageAction(
   playerId: PlayerId,
   action: string,
-  content: number
+  content: number,
+  lobbyId: string
 ): Message {
   return {
     playerId: playerId,
+    lobbyId: lobbyId,
     id: -1,
     type: "action",
     action: action,
@@ -69,15 +84,23 @@ type MessageStart = {
   type: "start";
 };
 
+export type MessageWithPlayerId = { playerId: PlayerId } & (
+  | MessageAction
+  | MessageChat
+  | MessageAddPlayer
+  | MessageSetPlayer
+  | MessageSit
+  | MessageReset
+);
+
 export type Message = MessageCommon &
   (
-    | MessageAction
-    | MessageChat
-    | MessageAddPlayer
-    | MessageSetPlayer
-    | MessageSit
-    | MessageStart
-    | MessageNewCards
+    | MessageWithPlayerId
+    | ({ playerId: null } & (
+        | MessageStart
+        | MessageNewCommunityCards
+        | MessageShowCards
+      ))
   );
 
 export function cardsToString(cards: Card[]): string {
@@ -88,11 +111,15 @@ export function cardsToString(cards: Card[]): string {
 }
 
 export function messageToString(message: Message): string {
-  if (message.type == "newCards") {
+  if (message.type == "newCommunityCards") {
     return message.id + ": server sent: " + cardsToString(message.cards);
   }
   let x: string =
-    message.id + ": " + message.type + ": " + message.playerId.name;
+    message.id +
+    ": " +
+    message.type +
+    ": " +
+    (message.playerId != null ? message.playerId.name + ": " : "");
   if (message.type == "chat") x += ": " + message.text;
   if (message.type == "action")
     x += ": " + message.action + " " + message.content;
@@ -105,23 +132,21 @@ export function prepareMessageForClient(
   message: Message
 ): Message {
   const newMessage: Message = JSON.parse(JSON.stringify(message));
-  if (message.type == "newCards") {
-    newMessage.playerId.id = "UNKNOWN ID";
-    return message;
-  }
   //console.log("lobby", lobby);
+  if (newMessage.playerId == null) return newMessage;
   if (
-    lobby.players[message.playerId.inGameId].playerId.id != message.playerId.id
+    lobby.players[newMessage.playerId.inGameId].playerId.id !=
+    newMessage.playerId.id
   ) {
     console.log(
       "id doesn't match hacker",
-      message.playerId,
-      lobby.players[message.playerId.inGameId].playerId
+      newMessage.playerId,
+      lobby.players[newMessage.playerId.inGameId].playerId
     );
-    console.log(
-      lobby.players[message.playerId.inGameId].playerId.id,
-      message.playerId.id
-    );
+    // console.log(
+    //   lobby.players[newMessage.playerId.inGameId].playerId.id,
+    //   newMessage.playerId.id
+    // );
     newMessage.playerId.name = "UNKNOWN NAME";
   } else {
     newMessage.playerId.name =
@@ -150,14 +175,14 @@ export function validateSeat(
   playerId: PlayerId,
   seat: number
 ): boolean {
-  console.log("seat", seat);
-  console.log(
-    seat >= 0,
-    seat <= 9,
-    Number.isInteger(seat),
-    lobby.seats[seat] == -1,
-    lobby.players[playerId.inGameId].playerId.seat == -1
-  );
+  // console.log("seat", seat);
+  // console.log(
+  //   seat >= 0,
+  //   seat <= 9,
+  //   Number.isInteger(seat),
+  //   lobby.seats[seat] == -1,
+  //   lobby.players[playerId.inGameId].playerId.seat == -1
+  // );
   return (
     seat >= 0 &&
     seat <= 9 &&
@@ -168,17 +193,23 @@ export function validateSeat(
   // return true;
 }
 
-export function createChat(playerId: PlayerId, text: string): Message {
+export function createChat(
+  playerId: PlayerId,
+  lobbyId: string,
+  text: string
+): Message {
   return {
     type: "chat",
     id: -1,
     text: text,
     playerId: playerId,
+    lobbyId: lobbyId,
   };
 }
 
 export function createAction(
   playerId: PlayerId,
+  lobbyId: string,
   action: string,
   content: number
 ): Message {
@@ -188,6 +219,7 @@ export function createAction(
     action: action,
     content: content,
     playerId: playerId,
+    lobbyId: lobbyId,
   };
 }
 
@@ -203,6 +235,7 @@ export interface LobbyGameInfo {
   curRaise: number;
   maxChipsThisRound: number;
   totalPot: number;
+  lastAggressivePerson: number; //seat of last aggressive person
   deck: Card[];
   board: Card[];
 }
@@ -220,6 +253,7 @@ export function createLobbyGameInfo() {
     curRaise: 2,
     maxChipsThisRound: 2,
     totalPot: 3,
+    lastAggressivePerson: -1,
     deck: [],
     board: [],
   };
@@ -352,7 +386,6 @@ export interface PlayerId {
   inGameId: number; //should be the number of players before this player joined, remembered by frontend so it knows what person it is playing and to fill in data easily
   name: string;
   seat: number;
-  lobbyId: string;
 }
 
 export function createPlayerId(
@@ -365,7 +398,6 @@ export function createPlayerId(
     inGameId: lobby.players.length,
     name: name,
     seat: -1,
-    lobbyId: lobby.id,
   };
 }
 
@@ -404,13 +436,13 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
   switch (message.action) {
     case "start": {
       let numPlayers = 0;
-      for (let i = 0; i < lobby.players.length; i++)
-        if (
-          !lobby.players[i].gameInfo.away &&
-          lobby.players[i].gameInfo.stack != 0
-        )
-          numPlayers++;
+      for (let i = 0; i < 10; i++) {
+        if (lobby.seats[i] == -1) continue;
+        let player = lobby.players[lobby.seats[i]].gameInfo;
+        if (!player.away && player.stack != 0) numPlayers++;
+      }
       if (numPlayers < 2) return "Not enough players";
+      if (lg.gameStarted) return "Already started";
       break;
     }
     case "raise": {
@@ -425,14 +457,14 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
     }
     case "check":
       {
-        console.log(
-          lg.curPlayer,
-          lobby.seats[lg.curPlayer],
-          lobby.players[lobby.seats[lg.curPlayer]],
-          curPlayer,
-          curPlayer.chipsThisRound,
-          lg.maxChipsThisRound
-        );
+        // console.log(
+        //   lg.curPlayer,
+        //   lobby.seats[lg.curPlayer],
+        //   lobby.players[lobby.seats[lg.curPlayer]],
+        //   curPlayer,
+        //   curPlayer.chipsThisRound,
+        //   lg.maxChipsThisRound
+        // );
         if (
           curPlayer.chipsThisRound != lg.maxChipsThisRound &&
           curPlayer.stack != 0
@@ -448,7 +480,8 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
 
 export interface ActionResult {
   cards: Card[]; // community cards
-  calledReset: boolean;
+  calledHandEnd: boolean;
+  cardsShown: ShowCards[];
 }
 
 export function runAction(
@@ -468,10 +501,15 @@ export function runAction(
     curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
   switch (message.action) {
     case "start": {
-      startLobby(lobby, isClient);
-      return { cards: [], calledReset: true };
+      if (!isClient) resetHand(lobby, isClient);
+      return {
+        cards: [],
+        calledHandEnd: false,
+        cardsShown: [],
+      };
     }
     case "raise": {
+      lg.lastAggressivePerson = lg.curPlayer;
       if (isValidRaise(lobby, message.content)) {
         lg.curRaise = Math.max(
           lg.curRaise,
@@ -493,12 +531,7 @@ export function runAction(
       curPlayer.inPot = false;
       lg.numInPot--;
       if (lg.numInPot == 1) {
-        for (let i = 0; i < lobby.players.length; i++)
-          if (lobby.players[i].gameInfo.inPot) {
-            takeFromPot(lg, lobby.players[i].gameInfo, lg.totalPot);
-          }
-        resetHand(lobby, isClient);
-        return { cards: [], calledReset: true };
+        if (!isClient) return showdown(lobby);
       }
       break;
     }
@@ -527,9 +560,16 @@ export function runAction(
       }
     }
   }
-  let actionResult: ActionResult = { cards: [], calledReset: false };
+  let actionResult: ActionResult = {
+    cards: [],
+    calledHandEnd: false,
+    cardsShown: [],
+  };
   lg.curPlayer = findNext(lobby, lg.curPlayer);
   if (doneRound) actionResult = endRound(lobby, isClient);
   //implement autocheck if only one person has chips
   return actionResult;
+}
+function showdown(lobby: Lobby): ActionResult | null {
+  throw new Error("Function not implemented.");
 }

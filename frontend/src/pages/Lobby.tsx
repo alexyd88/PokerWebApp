@@ -1,6 +1,12 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import type { Lobby, Message, PlayerId } from "game_logic";
+import type {
+  Lobby,
+  Message,
+  MessageWithPlayerId,
+  PlayerId,
+  ShowCards,
+} from "game_logic";
 import {
   playerGameInfoToString,
   createLobbyClient,
@@ -10,7 +16,6 @@ import {
   addExistingPlayer,
   messageToString,
   createPlayerId,
-  startLobby,
   setPlayerNameClient,
   createMessageAction,
   runAction,
@@ -18,8 +23,9 @@ import {
   lobbyInfoToString,
   updateHoleCards,
   deal,
-  createCard,
   updatePlayerBestHand,
+  resetHand,
+  showdown,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -68,14 +74,14 @@ export function Lobby() {
     playerId = JSON.parse(JSON.stringify(reactPlayerId));
     console.log("playerId", playerId);
     console.log("lobby", lobby);
-    if (playerId == null) {
+    if (playerId == null || lobbyId == null) {
       console.log("HOWTF");
       return;
     }
     switch (button) {
       case "sayHi": {
         if (playerId != null && lobby != null) {
-          const message: Message = createChat(playerId, "hi");
+          const message: Message = createChat(playerId, lobbyId, "hi");
           socket?.emit("chat", message);
         }
         break;
@@ -88,6 +94,7 @@ export function Lobby() {
           playerId.name = name.value;
           const message: Message = {
             type: "setPlayerName",
+            lobbyId: lobbyId,
             id: -1,
             playerId: playerId,
           };
@@ -115,6 +122,7 @@ export function Lobby() {
           validateSeat(lobby, playerId, seatNum)
         ) {
           const message: Message = {
+            lobbyId: lobbyId,
             type: "sit",
             location: seatNum,
             id: -1,
@@ -142,7 +150,8 @@ export function Lobby() {
         const message: Message = createMessageAction(
           playerId,
           button,
-          button == "raise" ? Number(amt.value) : 0
+          button == "raise" ? Number(amt.value) : 0,
+          lobbyId
         );
         const error: string = getErrorFromAction(lobby, message);
         if (error != "success") {
@@ -158,7 +167,7 @@ export function Lobby() {
     setPlayerId(playerId);
   }
 
-  function emitRetryAddPlayer(socket: Socket, message: Message) {
+  function emitRetryAddPlayer(socket: Socket, message: MessageWithPlayerId) {
     const id: string = message.playerId.id;
     socket.emit("addPlayer", message, (response: { err: boolean }) => {
       if (response == null) {
@@ -173,7 +182,6 @@ export function Lobby() {
           return;
         }
         playerId = {
-          lobbyId: lobbyId,
           id: id,
           inGameId: message.playerId.inGameId,
           seat: -1,
@@ -218,34 +226,48 @@ export function Lobby() {
         break;
       }
       case "start": {
-        startLobby(lobby, true);
+        console.log("SENT START");
+        //resetHand(lobby, true);
         break;
       }
       case "action": {
         runAction(lobby, message, true);
         break;
       }
-      case "newCards": {
-        if (message.isCommunity) {
-          for (let i = 0; i < message.cards.length; i++) {
-            deal(lobby, message.cards[i]);
+      case "newCommunityCards": {
+        for (let i = 0; i < message.cards.length; i++) {
+          deal(lobby, message.cards[i]);
+        }
+        updatePlayerBestHand(lobby);
+        break;
+      }
+      case "showCards": {
+        for (let i = 0; i < message.cardsShown.length; i++) {
+          const showCards: ShowCards = message.cardsShown[i];
+          updateHoleCards(
+            lobby.players[showCards.inGameId].gameInfo,
+            showCards.card1,
+            showCards.card2
+          );
+        }
+        showdown(lobby);
+        break;
+      }
+      case "reset": {
+        if (
+          playerId != null &&
+          playerId.inGameId == message.playerId.inGameId
+        ) {
+          resetHand(lobby, true);
+          if (message.playerId == null) {
+            console.log("HOWTF");
+            break;
           }
-          updatePlayerBestHand(lobby);
-        } else {
-          if (playerId != null && playerId.inGameId != null) {
-            if (message.cards.length > 0)
-              updateHoleCards(
-                lobby.players[playerId.inGameId].gameInfo,
-                message.cards[0],
-                message.cards[1]
-              );
-            else
-              updateHoleCards(
-                lobby.players[message.playerId.inGameId].gameInfo,
-                createCard(0, "?"),
-                createCard(0, "?")
-              );
-          }
+          updateHoleCards(
+            lobby.players[message.playerId.inGameId].gameInfo,
+            message.cards[0],
+            message.cards[1]
+          );
         }
         break;
       }
@@ -268,6 +290,7 @@ export function Lobby() {
           handleMessage(response.messages[i]);
         if (wantAddPlayer) {
           const message: Message = {
+            lobbyId: lobbyId,
             type: "addPlayer",
             id: -1,
             playerId: createPlayerId(lobby, "GUEST", null),
