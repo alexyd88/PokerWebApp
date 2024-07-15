@@ -3,6 +3,7 @@ import { compareHands, findBestHand, getStrength } from "./handEval";
 import {
   ActionResult,
   Card,
+  cardsToString,
   Lobby,
   LobbyGameInfo,
   Player,
@@ -91,11 +92,15 @@ export function findNext(lobby: Lobby, position: number) {
   return position;
 }
 
-function updatePlayerBestHand(lobby: Lobby) {
+export function updatePlayerBestHand(lobby: Lobby) {
   for (let i = 0; i < lobby.players.length; i++) {
     let player = lobby.players[i].gameInfo;
-    player.curBestHand = findBestHand(player.fullHand);
-    player.curHandStrength = getStrength(player.curBestHand);
+    if (player.fullHand.length >= 5) {
+      player.curBestHand = findBestHand(player.fullHand);
+      player.curHandStrength = getStrength(player.curBestHand);
+    } else {
+      console.log("HOW ARE U HERE U HAVE " + cardsToString(player.fullHand));
+    }
   }
 }
 
@@ -173,7 +178,7 @@ export function endRound(lobby: Lobby, isClient: boolean): ActionResult {
       updatePlayerBestHand(lobby);
     }
   }
-  if (lg.curPlayer == 4) {
+  if (lg.curRound == 4) {
     showdown(lobby);
     resetHand(lobby, isClient);
     return { cards: [], calledReset: true };

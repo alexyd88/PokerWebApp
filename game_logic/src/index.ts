@@ -80,7 +80,7 @@ export type Message = MessageCommon &
     | MessageNewCards
   );
 
-function cardsToString(cards: Card[]): string {
+export function cardsToString(cards: Card[]): string {
   let s: string = "";
   for (let i = 0; i < cards.length; i++)
     s += cards[i].numDisplay + cards[i].suit;
@@ -282,9 +282,9 @@ export interface PlayerGameInfo {
   away: boolean;
 }
 
-export function playerGameInfoToString(lobby: Lobby, player: Player) {
+export function playerGameInfoToString(player: Player, isUser: boolean) {
   const gameInfo: PlayerGameInfo = player.gameInfo;
-  return (
+  let s =
     "stack: " +
     gameInfo.stack +
     " | inPot: " +
@@ -295,10 +295,14 @@ export function playerGameInfoToString(lobby: Lobby, player: Player) {
     gameInfo.card1.numDisplay +
     gameInfo.card1.suit +
     gameInfo.card2.numDisplay +
-    gameInfo.card2.suit +
-    " | " +
-    strengthToString(gameInfo.curHandStrength)
-  );
+    gameInfo.card2.suit;
+  if (isUser)
+    s +=
+      " | " +
+      cardsToString(gameInfo.curBestHand) +
+      " | " +
+      strengthToString(gameInfo.curHandStrength);
+  return s;
   // (player.playerId.seat == lobby.gameInfo.curPlayer)
   // ? "<-- this guy's turn"
   // : "";

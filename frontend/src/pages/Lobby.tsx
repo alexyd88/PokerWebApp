@@ -19,6 +19,7 @@ import {
   updateHoleCards,
   deal,
   createCard,
+  updatePlayerBestHand,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -148,7 +149,6 @@ export function Lobby() {
           displayWarning(error);
         } else {
           socket?.emit("action", message);
-          console.log("sent this", message);
         }
         break;
       }
@@ -230,6 +230,7 @@ export function Lobby() {
           for (let i = 0; i < message.cards.length; i++) {
             deal(lobby, message.cards[i]);
           }
+          updatePlayerBestHand(lobby);
         } else {
           if (playerId != null && playerId.inGameId != null) {
             if (message.cards.length > 0)
@@ -305,7 +306,12 @@ export function Lobby() {
   return (
     <div>
       {reactPlayerId != null
-        ? "name: " + reactPlayerId.name + " seat: " + reactPlayerId.seat
+        ? "name: " +
+          reactPlayerId.name +
+          " seat: " +
+          reactPlayerId.seat +
+          "ingameid: " +
+          reactPlayerId.inGameId
         : "placeholder, join below"}
       {reactLobby?.messages.map((message, index) => {
         return <div key={index}>{messageToString(message)}</div>;
@@ -316,7 +322,10 @@ export function Lobby() {
             {user == -1
               ? "empty"
               : reactLobby.players[user].playerId.name +
-                playerGameInfoToString(reactLobby, reactLobby.players[user])}
+                playerGameInfoToString(
+                  reactLobby.players[user],
+                  user == reactPlayerId?.inGameId
+                )}
           </li>
         );
       })}

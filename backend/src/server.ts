@@ -72,13 +72,11 @@ function addAndReturn(
         prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
       );
   }
-
+  //console.log("WILL SEND TO", location, "EXCEPT", except);
   console.log(
-    "WILL SEND TO",
-    location,
-    "EXCEPT",
-    except,
-    prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
+    messageToString(
+      prepareMessageForClient(lobbies.get(message.playerId.lobbyId), message)
+    )
   );
 }
 
@@ -199,7 +197,7 @@ io.on("connection", (socket) => {
       console.log("WHAT THE FUCK");
       return;
     }
-    console.log("HEY BRO", actionResult.cards, actionResult.calledReset);
+    addAndReturn(message, null, null);
     if (actionResult.cards.length != 0) {
       const cardMessage: Message = {
         playerId: message.playerId,
@@ -214,7 +212,6 @@ io.on("connection", (socket) => {
       let lobby = lobbies.get(message.playerId.lobbyId);
       sendUpdateHoleCards(lobby, message);
     }
-    addAndReturn(message, null, null);
   });
 });
 
