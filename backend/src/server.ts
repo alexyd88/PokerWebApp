@@ -193,6 +193,7 @@ io.on("connection", (socket) => {
       console.log("WTF");
       return;
     }
+    console.log(lobby.seats[lobby.gameInfo.curPlayer], "should go");
     if (
       (lobby.seats[lobby.gameInfo.curPlayer] != message.playerId.inGameId &&
         message.action != "start") ||

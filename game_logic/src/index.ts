@@ -6,6 +6,7 @@ import {
   isValidRaise,
   raise,
   resetHand,
+  showdown,
   takeFromPot,
 } from "./logic";
 import { strengthToString } from "./handEval";
@@ -569,7 +570,4 @@ export function runAction(
   if (doneRound) actionResult = endRound(lobby, isClient);
   //implement autocheck if only one person has chips
   return actionResult;
-}
-function showdown(lobby: Lobby): ActionResult | null {
-  throw new Error("Function not implemented.");
 }

@@ -26,6 +26,7 @@ import {
   updatePlayerBestHand,
   resetHand,
   showdown,
+  cardsToString,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -238,18 +239,25 @@ export function Lobby() {
         for (let i = 0; i < message.cards.length; i++) {
           deal(lobby, message.cards[i]);
         }
-        updatePlayerBestHand(lobby);
         break;
       }
       case "showCards": {
         for (let i = 0; i < message.cardsShown.length; i++) {
           const showCards: ShowCards = message.cardsShown[i];
-          updateHoleCards(
-            lobby.players[showCards.inGameId].gameInfo,
-            showCards.card1,
-            showCards.card2
-          );
+          if (playerId?.inGameId != showCards.inGameId)
+            updateHoleCards(
+              lobby.players[showCards.inGameId].gameInfo,
+              showCards.card1,
+              showCards.card2
+            );
         }
+        for (let i = 0; i < lobby.players.length; i++)
+          console.log(
+            i,
+            cardsToString(lobby.players[i].gameInfo.fullHand),
+            cardsToString(lobby.players[i].gameInfo.curBestHand)
+          );
+        updatePlayerBestHand(lobby);
         showdown(lobby);
         break;
       }
