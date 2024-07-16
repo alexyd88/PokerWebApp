@@ -340,6 +340,7 @@ export function resetHand(lobby: Lobby, isClient: boolean) {
   );
   lg.curPlayer = findNext(lobby, bb);
   lg.maxChipsInPot = lg.bigBlind;
+  lg.maxChipsThisRound = lg.bigBlind;
   lg.curRound = 0;
   lg.curRaise = lg.bigBlind;
   lg.numPlayedThisRound = 0;

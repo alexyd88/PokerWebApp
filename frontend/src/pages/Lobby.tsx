@@ -251,13 +251,14 @@ export function Lobby() {
               showCards.card2
             );
         }
+        updatePlayerBestHand(lobby);
         for (let i = 0; i < lobby.players.length; i++)
           console.log(
             i,
             cardsToString(lobby.players[i].gameInfo.fullHand),
             cardsToString(lobby.players[i].gameInfo.curBestHand)
           );
-        updatePlayerBestHand(lobby);
+        console.log(cardsToString(lobby.gameInfo.board));
         showdown(lobby);
         break;
       }

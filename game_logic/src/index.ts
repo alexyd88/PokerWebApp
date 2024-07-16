@@ -470,6 +470,7 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
           curPlayer.chipsThisRound != lg.maxChipsThisRound &&
           curPlayer.stack != 0
         ) {
+          console.log("chis", curPlayer.chipsThisRound, lg.maxChipsThisRound);
           lg.numPlayedThisRound--;
           return "Cannot check";
         }
