@@ -36,6 +36,10 @@ type MessageNewCommunityCards = {
   cards: Card[];
 };
 
+type MessageShowdown = {
+  type: "showdown";
+};
+
 export type ShowCards = {
   inGameId: number;
   card1: Card;
@@ -49,7 +53,6 @@ type MessageShowCards = {
 
 type MessageReset = {
   type: "reset";
-  cards: Card[];
 };
 
 export function createMessageAction(
@@ -91,18 +94,18 @@ export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageAddPlayer
   | MessageSetPlayer
   | MessageSit
+);
+
+export type MessageWithoutPlayerId = { playerId: null } & (
+  | MessageStart
+  | MessageNewCommunityCards
+  | MessageShowCards
   | MessageReset
+  | MessageShowdown
 );
 
 export type Message = MessageCommon &
-  (
-    | MessageWithPlayerId
-    | ({ playerId: null } & (
-        | MessageStart
-        | MessageNewCommunityCards
-        | MessageShowCards
-      ))
-  );
+  (MessageWithoutPlayerId | MessageWithPlayerId);
 
 export function cardsToString(cards: Card[]): string {
   let s: string = "";
@@ -112,8 +115,8 @@ export function cardsToString(cards: Card[]): string {
 }
 
 export function messageToString(message: Message): string {
-  if (message.type == "newCommunityCards") {
-    return message.id + ": server sent: " + cardsToString(message.cards);
+  if (message.playerId == null) {
+    return message.id + ": server sent: " + message.type;
   }
   let x: string =
     message.id +
@@ -499,8 +502,15 @@ export function runAction(
 
   lg.numPlayedThisRound++;
   let curPlayer: PlayerGameInfo = createPlayerGameInfo();
-  if (message.action != "start")
+  if (message.action != "start") {
+    console.log(lg.curPlayer);
+    console.log(lobby.seats[lg.curPlayer]);
+    console.log(lobby.players[lobby.seats[lg.curPlayer]].gameInfo);
     curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
+
+    console.log(lobby.players, lobby.seats, lg.curPlayer);
+  }
+
   switch (message.action) {
     case "start": {
       if (!isClient) resetHand(lobby, isClient);

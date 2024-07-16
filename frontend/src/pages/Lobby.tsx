@@ -196,10 +196,10 @@ export function Lobby() {
   }
 
   function handleMessage(message: Message) {
+    console.log("received", message);
     if (reactPlayerId != null)
       playerId = JSON.parse(JSON.stringify(reactPlayerId));
     if (lobby == null) return;
-    console.log("received", message);
     switch (message.type) {
       case "chat": {
         //nothing special really
@@ -212,10 +212,11 @@ export function Lobby() {
           lobby.players[message.playerId.inGameId].playerId,
           message.location
         );
-        if (playerId?.inGameId == message.playerId.inGameId)
+        if (playerId?.inGameId == message.playerId.inGameId) {
           playerId.seat = message.location;
-        console.log("gonna set pid to ", playerId);
-        setPlayerId(playerId);
+          console.log("gonna set pid to ", playerId);
+          setPlayerId(playerId);
+        }
         break;
       }
       case "addPlayer": {
@@ -244,12 +245,11 @@ export function Lobby() {
       case "showCards": {
         for (let i = 0; i < message.cardsShown.length; i++) {
           const showCards: ShowCards = message.cardsShown[i];
-          if (playerId?.inGameId != showCards.inGameId)
-            updateHoleCards(
-              lobby.players[showCards.inGameId].gameInfo,
-              showCards.card1,
-              showCards.card2
-            );
+          updateHoleCards(
+            lobby.players[showCards.inGameId].gameInfo,
+            showCards.card1,
+            showCards.card2
+          );
         }
         updatePlayerBestHand(lobby);
         for (let i = 0; i < lobby.players.length; i++)
@@ -258,25 +258,15 @@ export function Lobby() {
             cardsToString(lobby.players[i].gameInfo.fullHand),
             cardsToString(lobby.players[i].gameInfo.curBestHand)
           );
-        console.log(cardsToString(lobby.gameInfo.board));
+        break;
+      }
+      case "showdown": {
         showdown(lobby);
         break;
       }
       case "reset": {
-        if (
-          playerId != null &&
-          playerId.inGameId == message.playerId.inGameId
-        ) {
+        if (playerId != null) {
           resetHand(lobby, true);
-          if (message.playerId == null) {
-            console.log("HOWTF");
-            break;
-          }
-          updateHoleCards(
-            lobby.players[message.playerId.inGameId].gameInfo,
-            message.cards[0],
-            message.cards[1]
-          );
         }
         break;
       }
@@ -314,12 +304,12 @@ export function Lobby() {
     lobby = JSON.parse(JSON.stringify(lobby));
     if (message.id != lobby.messages.length) {
       console.log("I MISSED A MESSAGE");
+      console.log(lobby.messages);
       replay(socket, false);
     } else {
       handleMessage(message);
     }
     lobby.messages.push(message);
-    console.log(lobby.messages);
     setReactLobby(lobby);
   };
 
