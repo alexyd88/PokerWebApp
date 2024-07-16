@@ -85,6 +85,7 @@ function addAndReturn(
 
 function sendReset(lobby: LobbyServer, message: Message) {
   let cardMessage: Message = {
+    date: new Date(),
     playerId: null,
     type: "reset",
     lobbyId: message.lobbyId,
@@ -92,6 +93,7 @@ function sendReset(lobby: LobbyServer, message: Message) {
   };
   addAndReturn(cardMessage, null, null, true);
   cardMessage = {
+    date: new Date(),
     playerId: JSON.parse(JSON.stringify(message.playerId)),
     type: "showCards",
     cardsShown: [
@@ -132,6 +134,7 @@ function sendReset(lobby: LobbyServer, message: Message) {
 
 function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
   let cardMessage: Message = {
+    date: new Date(),
     type: "showCards",
     cardsShown: cardsShown,
     lobbyId: lobby.id,
@@ -181,14 +184,17 @@ function handleMessage(message: Message) {
         console.log("WHAT THE FUCK");
         return;
       }
+      let cardDelay: number = 0;
       if (actionResult.cards.length != 0) {
         const cardMessage: Message = {
+          date: new Date(),
           type: "newCommunityCards",
           playerId: null,
           lobbyId: message.lobbyId,
           id: -1,
           cards: actionResult.cards,
         };
+        cardDelay = 1000;
         setTimeout(addAndReturn, 1000, cardMessage, null, null, true);
       }
       if (message.action == "start") {
@@ -198,6 +204,7 @@ function handleMessage(message: Message) {
         let lobby = lobbies.get(message.lobbyId);
         sendCardsShown(lobby, actionResult.cardsShown);
         const showdownMessage: Message = {
+          date: new Date(),
           type: "showdown",
           playerId: null,
           lobbyId: message.lobbyId,

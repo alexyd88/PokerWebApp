@@ -94,6 +94,7 @@ export function Lobby() {
         if (name.value.length > 0 && playerId != null) {
           playerId.name = name.value;
           const message: Message = {
+            date: new Date(),
             type: "setPlayerName",
             lobbyId: lobbyId,
             id: -1,
@@ -123,6 +124,7 @@ export function Lobby() {
           validateSeat(lobby, playerId, seatNum)
         ) {
           const message: Message = {
+            date: new Date(),
             lobbyId: lobbyId,
             type: "sit",
             location: seatNum,
@@ -290,6 +292,7 @@ export function Lobby() {
           handleMessage(response.messages[i]);
         if (wantAddPlayer) {
           const message: Message = {
+            date: new Date(),
             lobbyId: lobbyId,
             type: "addPlayer",
             id: -1,
@@ -345,7 +348,7 @@ export function Lobby() {
             {user == -1
               ? "empty"
               : reactLobby.players[user].playerId.name +
-                playerGameInfoToString(reactLobby.players[user])}
+                playerGameInfoToString(reactLobby.players[user], reactLobby)}
           </li>
         );
       })}

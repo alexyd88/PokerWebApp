@@ -18,6 +18,7 @@ export * from "./handEval";
 type MessageCommon = {
   id: number;
   lobbyId: string;
+  date: Date;
 };
 
 type MessageChat = {
@@ -62,6 +63,7 @@ export function createMessageAction(
   lobbyId: string
 ): Message {
   return {
+    date: new Date(),
     playerId: playerId,
     lobbyId: lobbyId,
     id: -1,
@@ -203,6 +205,7 @@ export function createChat(
   text: string
 ): Message {
   return {
+    date: new Date(),
     type: "chat",
     id: -1,
     text: text,
@@ -218,6 +221,7 @@ export function createAction(
   content: number
 ): Message {
   return {
+    date: new Date(),
     type: "action",
     id: -1,
     action: action,
@@ -328,7 +332,7 @@ export interface PlayerGameInfo {
   away: boolean;
 }
 
-export function playerGameInfoToString(player: Player) {
+export function playerGameInfoToString(player: Player, lobby: Lobby) {
   const gameInfo: PlayerGameInfo = player.gameInfo;
   let s =
     "stack: " +
@@ -350,6 +354,8 @@ export function playerGameInfoToString(player: Player) {
       cardsToString(gameInfo.curBestHand) +
       " | " +
       strengthToString(gameInfo.curHandStrength);
+  if (lobby.gameInfo.curPlayer == player.playerId.seat)
+    s += " <---- this guys turn";
   return s;
   // (player.playerId.seat == lobby.gameInfo.curPlayer)
   // ? "<-- this guy's turn"
