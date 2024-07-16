@@ -141,6 +141,77 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
   addAndReturn(cardMessage, lobby.id, null, true);
 }
 
+function handleMessage(message: Message) {
+  addAndReturn(message, null, null, true);
+  switch (message.type) {
+    case "chat": {
+      //nothing special
+      break;
+    }
+    case "setPlayerName": {
+      const lobby = lobbies.get(message.lobbyId);
+      setPlayerNameServer(lobby, message.playerId);
+      break;
+    }
+    case "sit": {
+      sit(lobbies.get(message.lobbyId), message.playerId, message.location);
+      break;
+    }
+    case "action": {
+      if (message.type != "action") {
+        console.log("WTF");
+        return;
+      }
+      let lobby = lobbies.get(message.lobbyId);
+      if (
+        (lobby.seats[lobby.gameInfo.curPlayer] != message.playerId.inGameId &&
+          message.action != "start") ||
+        getErrorFromAction(lobby, message) != "success"
+      ) {
+        console.log(
+          lobby.seats[lobby.gameInfo.curPlayer],
+          message.playerId.inGameId,
+          getErrorFromAction(lobby, message)
+        );
+        console.log("U ARE TROLLING ME");
+        return;
+      }
+      const actionResult: ActionResult = runAction(lobby, message, false);
+      if (actionResult == null) {
+        console.log("WHAT THE FUCK");
+        return;
+      }
+      if (actionResult.cards.length != 0) {
+        const cardMessage: Message = {
+          type: "newCommunityCards",
+          playerId: null,
+          lobbyId: message.lobbyId,
+          id: -1,
+          cards: actionResult.cards,
+        };
+        setTimeout(addAndReturn, 1000, cardMessage, null, null, true);
+      }
+      if (message.action == "start") {
+        sendReset(lobby, message);
+      }
+      if (actionResult.calledHandEnd) {
+        let lobby = lobbies.get(message.lobbyId);
+        sendCardsShown(lobby, actionResult.cardsShown);
+        const showdownMessage: Message = {
+          type: "showdown",
+          playerId: null,
+          lobbyId: message.lobbyId,
+          id: -1,
+        };
+        addAndReturn(showdownMessage, null, null, true);
+        resetHand(lobby, false);
+        setTimeout(sendReset, 3000, lobby, message);
+      }
+      break;
+    }
+  }
+}
+
 io.on("connection", (socket) => {
   console.log("user connected", Date.now());
   socket.on("getMessages", async (lobbyId: string, callback) => {
@@ -183,74 +254,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("message", (message: Message) => {
-    addAndReturn(message, null, null, true);
-    switch (message.type) {
-      case "chat": {
-        //nothing special
-        break;
-      }
-      case "setPlayerName": {
-        const lobby = lobbies.get(message.lobbyId);
-        setPlayerNameServer(lobby, message.playerId);
-        break;
-      }
-      case "sit": {
-        sit(lobbies.get(message.lobbyId), message.playerId, message.location);
-        break;
-      }
-      case "action": {
-        if (message.type != "action") {
-          console.log("WTF");
-          return;
-        }
-        let lobby = lobbies.get(message.lobbyId);
-        if (
-          (lobby.seats[lobby.gameInfo.curPlayer] != message.playerId.inGameId &&
-            message.action != "start") ||
-          getErrorFromAction(lobby, message) != "success"
-        ) {
-          console.log(
-            lobby.seats[lobby.gameInfo.curPlayer],
-            message.playerId.inGameId,
-            getErrorFromAction(lobby, message)
-          );
-          console.log("U ARE TROLLING ME");
-          return;
-        }
-        const actionResult: ActionResult = runAction(lobby, message, false);
-        if (actionResult == null) {
-          console.log("WHAT THE FUCK");
-          return;
-        }
-        if (actionResult.cards.length != 0) {
-          const cardMessage: Message = {
-            type: "newCommunityCards",
-            playerId: null,
-            lobbyId: message.lobbyId,
-            id: -1,
-            cards: actionResult.cards,
-          };
-          addAndReturn(cardMessage, null, null, true);
-        }
-        if (message.action == "start") {
-          sendReset(lobby, message);
-        }
-        if (actionResult.calledHandEnd) {
-          let lobby = lobbies.get(message.lobbyId);
-          sendCardsShown(lobby, actionResult.cardsShown);
-          const showdownMessage: Message = {
-            type: "showdown",
-            playerId: null,
-            lobbyId: message.lobbyId,
-            id: -1,
-          };
-          addAndReturn(showdownMessage, null, null, true);
-          resetHand(lobby, false);
-          setTimeout(sendReset, 3000, lobby, message);
-        }
-        break;
-      }
-    }
+    handleMessage(message);
   });
 });
 
