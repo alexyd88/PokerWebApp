@@ -186,14 +186,16 @@ export function showdown(lobby: Lobby): ActionResult {
     let totalPayout = 0;
     for (let j = 0; j < lobby.players.length; j++) {
       let player = lobby.players[j].gameInfo;
-      const amt = Math.min(lowestAmt, player.chipsInPot);
-      player.chipsInPot -= amt;
-      totalPayout += amt;
-      if (player.inPot && compareHands(bestHand, player.curBestHand) == 0)
-        winners.push(j);
-      if (player.chipsInPot == 0 && player.inPot) {
-        lg.numInPot--;
-        player.inPot = false;
+      if (player.inPot) {
+        const amt = Math.min(lowestAmt, player.chipsInPot);
+        player.chipsInPot -= amt;
+        totalPayout += amt;
+        if (player.inPot && compareHands(bestHand, player.curBestHand) == 0)
+          winners.push(j);
+        if (player.chipsInPot == 0 && player.inPot) {
+          lg.numInPot--;
+          player.inPot = false;
+        }
       }
     }
     const singlePayout = Math.floor(totalPayout / winners.length);
@@ -311,7 +313,9 @@ export function resetHand(lobby: Lobby, isClient: boolean) {
   for (let i = 0; i < lobby.players.length; i++) {
     let player = players[i].gameInfo;
     player.away = player.stack == 0;
-    player.inPot = !player.away;
+    player.inPot = false;
+    for (let j = 0; j < 10; j++) if (lobby.seats[j] == i) player.inPot = true;
+    if (player.away) player.inPot = false;
     if (player.inPot) lobby.gameInfo.numInPot++;
     player.chipsInPot = 0;
     player.fullHand.length = 0;
