@@ -100,11 +100,13 @@ export function findNext(lobby: Lobby, position: number) {
 export function updatePlayerBestHand(lobby: Lobby) {
   for (let i = 0; i < lobby.players.length; i++) {
     let player = lobby.players[i].gameInfo;
+    //console.log("length", player.fullHand.length);
     if (player.fullHand.length >= 5) {
       player.curBestHand = findBestHand(player.fullHand);
+      //console.log("set curbesthand to", cardsToString(player.curBestHand));
       player.curHandStrength = getStrength(player.curBestHand);
     } else {
-      console.log("HOW ARE U HERE U HAVE " + cardsToString(player.fullHand));
+      //console.log("HOW ARE U HERE U HAVE " + cardsToString(player.fullHand));
     }
   }
 }

@@ -273,6 +273,10 @@ export interface Lobby {
   messages: Message[];
 }
 
+export interface LobbyServer extends Lobby {
+  socketList: string[];
+}
+
 export function createLobbyServer(): Lobby {
   const seats: number[] = [];
   for (let i = 0; i < 10; i++) seats.push(-1);
@@ -336,6 +340,8 @@ export function playerGameInfoToString(player: Player, isUser: boolean) {
     gameInfo.card2.suit;
   if (isUser)
     s +=
+      " | " +
+      cardsToString(gameInfo.fullHand) +
       " | " +
       cardsToString(gameInfo.curBestHand) +
       " | " +

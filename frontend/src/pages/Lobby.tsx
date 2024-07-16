@@ -240,6 +240,7 @@ export function Lobby() {
         for (let i = 0; i < message.cards.length; i++) {
           deal(lobby, message.cards[i]);
         }
+        updatePlayerBestHand(lobby);
         break;
       }
       case "showCards": {
@@ -261,6 +262,7 @@ export function Lobby() {
         break;
       }
       case "showdown": {
+        updatePlayerBestHand(lobby);
         showdown(lobby);
         break;
       }
