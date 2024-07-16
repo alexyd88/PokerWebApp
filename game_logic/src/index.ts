@@ -504,7 +504,8 @@ export function runAction(
   let curPlayer: PlayerGameInfo = createPlayerGameInfo();
   if (message.action != "start") {
     console.log(lg.curPlayer);
-    console.log(lobby.seats[lg.curPlayer]);
+    console.log(lobby.seats);
+    console.log(lobby.players);
     console.log(lobby.players[lobby.seats[lg.curPlayer]].gameInfo);
     curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
 

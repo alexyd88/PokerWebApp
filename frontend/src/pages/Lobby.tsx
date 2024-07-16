@@ -265,9 +265,7 @@ export function Lobby() {
         break;
       }
       case "reset": {
-        if (playerId != null) {
-          resetHand(lobby, true);
-        }
+        resetHand(lobby, true);
         break;
       }
     }
