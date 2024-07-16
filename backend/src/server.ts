@@ -153,19 +153,6 @@ io.on("connection", (socket) => {
     console.log("socket joined:", room);
     socket.join(room);
   });
-  socket.on("chat", async (message: Message) => {
-    if (!lobbies.has(message.lobbyId)) {
-      console.log("how was lobby not created yet");
-    }
-    //console.log(lobbies.get(message.playerId.lobbyId).players);
-    addAndReturn(message, null, null, true);
-  });
-  socket.on("setPlayerName", async (message: Message) => {
-    const lobby = lobbies.get(message.lobbyId);
-    //console.log(lobby);
-    setPlayerNameServer(lobby, message.playerId);
-    addAndReturn(message, null, null, true);
-  });
   socket.on("addPlayer", async (message: Message, callback) => {
     if (message.type != "addPlayer") {
       console.log("how did u get here bro");
@@ -180,14 +167,6 @@ io.on("connection", (socket) => {
       playerId: createPlayerId(lobby, "GUEST", message.playerId.id),
       gameInfo: createPlayerGameInfo(),
     };
-    //console.log(lobby.players);
-    // let alrAdded: boolean = false;
-    // for (let i = 0; i < lobby.players.length; i++) {
-    //   if (lobby.players[i].playerId.name == message.playerId.name) {
-    //     console.log("BIG WARNING WHY MULTIPLE ADDS");
-    //     alrAdded = true;
-    //   }
-    // }
     let err: boolean = false;
     if (lobby.players.length != message.playerId.inGameId) {
       console.log("RACE CONDITION OMG");
@@ -202,63 +181,75 @@ io.on("connection", (socket) => {
       err: err,
     });
   });
-  socket.on("sit", async (message: Message) => {
-    //console.log(message);
-    if (message.type != "sit") return;
-    sit(lobbies.get(message.lobbyId), message.playerId, message.location);
 
+  socket.on("message", (message: Message) => {
     addAndReturn(message, null, null, true);
-  });
-  socket.on("action", async (message: Message) => {
-    let lobby = lobbies.get(message.lobbyId);
-    if (message.type != "action") {
-      console.log("WTF");
-      return;
-    }
-    if (
-      (lobby.seats[lobby.gameInfo.curPlayer] != message.playerId.inGameId &&
-        message.action != "start") ||
-      getErrorFromAction(lobby, message) != "success"
-    ) {
-      console.log(
-        lobby.seats[lobby.gameInfo.curPlayer],
-        message.playerId.inGameId,
-        getErrorFromAction(lobby, message)
-      );
-      console.log("U ARE TROLLING ME");
-      return;
-    }
-    const actionResult: ActionResult = runAction(lobby, message, false);
-    if (actionResult == null) {
-      console.log("WHAT THE FUCK");
-      return;
-    }
-    addAndReturn(message, null, null, true);
-    if (actionResult.cards.length != 0) {
-      const cardMessage: Message = {
-        type: "newCommunityCards",
-        playerId: null,
-        lobbyId: message.lobbyId,
-        id: -1,
-        cards: actionResult.cards,
-      };
-      addAndReturn(cardMessage, null, null, true);
-    }
-    if (message.action == "start") {
-      sendReset(lobby, message);
-    }
-    if (actionResult.calledHandEnd) {
-      let lobby = lobbies.get(message.lobbyId);
-      sendCardsShown(lobby, actionResult.cardsShown);
-      const showdownMessage: Message = {
-        type: "showdown",
-        playerId: null,
-        lobbyId: message.lobbyId,
-        id: -1,
-      };
-      addAndReturn(showdownMessage, null, null, true);
-      resetHand(lobby, false);
-      setTimeout(sendReset, 3000, lobby, message);
+    switch (message.type) {
+      case "chat": {
+        //nothing special
+        break;
+      }
+      case "setPlayerName": {
+        const lobby = lobbies.get(message.lobbyId);
+        setPlayerNameServer(lobby, message.playerId);
+        break;
+      }
+      case "sit": {
+        sit(lobbies.get(message.lobbyId), message.playerId, message.location);
+        break;
+      }
+      case "action": {
+        if (message.type != "action") {
+          console.log("WTF");
+          return;
+        }
+        let lobby = lobbies.get(message.lobbyId);
+        if (
+          (lobby.seats[lobby.gameInfo.curPlayer] != message.playerId.inGameId &&
+            message.action != "start") ||
+          getErrorFromAction(lobby, message) != "success"
+        ) {
+          console.log(
+            lobby.seats[lobby.gameInfo.curPlayer],
+            message.playerId.inGameId,
+            getErrorFromAction(lobby, message)
+          );
+          console.log("U ARE TROLLING ME");
+          return;
+        }
+        const actionResult: ActionResult = runAction(lobby, message, false);
+        if (actionResult == null) {
+          console.log("WHAT THE FUCK");
+          return;
+        }
+        if (actionResult.cards.length != 0) {
+          const cardMessage: Message = {
+            type: "newCommunityCards",
+            playerId: null,
+            lobbyId: message.lobbyId,
+            id: -1,
+            cards: actionResult.cards,
+          };
+          addAndReturn(cardMessage, null, null, true);
+        }
+        if (message.action == "start") {
+          sendReset(lobby, message);
+        }
+        if (actionResult.calledHandEnd) {
+          let lobby = lobbies.get(message.lobbyId);
+          sendCardsShown(lobby, actionResult.cardsShown);
+          const showdownMessage: Message = {
+            type: "showdown",
+            playerId: null,
+            lobbyId: message.lobbyId,
+            id: -1,
+          };
+          addAndReturn(showdownMessage, null, null, true);
+          resetHand(lobby, false);
+          setTimeout(sendReset, 3000, lobby, message);
+        }
+        break;
+      }
     }
   });
 });

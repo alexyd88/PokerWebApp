@@ -83,7 +83,7 @@ export function Lobby() {
       case "sayHi": {
         if (playerId != null && lobby != null) {
           const message: Message = createChat(playerId, lobbyId, "hi");
-          socket?.emit("chat", message);
+          socket?.emit("message", message);
         }
         break;
       }
@@ -99,7 +99,7 @@ export function Lobby() {
             id: -1,
             playerId: playerId,
           };
-          socket?.emit("setPlayerName", message);
+          socket?.emit("message", message);
         } else {
           console.log(
             "something wrong player submit",
@@ -129,7 +129,7 @@ export function Lobby() {
             id: -1,
             playerId: playerId,
           };
-          socket?.emit("sit", message);
+          socket?.emit("message", message);
         } else {
           displayWarning("can't sit there");
         }
@@ -158,7 +158,7 @@ export function Lobby() {
         if (error != "success") {
           displayWarning(error);
         } else {
-          socket?.emit("action", message);
+          socket?.emit("message", message);
         }
         break;
       }
