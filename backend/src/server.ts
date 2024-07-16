@@ -11,6 +11,7 @@ import { createServer } from "node:http";
 import type {
   ActionResult,
   Lobby,
+  LobbyServer,
   Message,
   Player,
   ShowCards,
@@ -27,7 +28,7 @@ import {
   setPlayerNameServer,
   sit,
 } from "game_logic";
-import { lobbies, messageLists, socketList } from "./controllers/lobbies";
+import { lobbies } from "./controllers/lobbies";
 import { send } from "node:process";
 
 const MONGODB_URI = env.MONGODB_URI;
@@ -54,9 +55,7 @@ function addMessage(message: Message) {
   message.id = lobby.messages.length;
   lobby.messages.push(message);
   console.log(messageToString(message));
-  messageLists
-    .get(message.lobbyId)
-    .push(prepareMessageForClient(lobby, message));
+  lobby.messageList.push(prepareMessageForClient(lobby, message));
 }
 
 function addAndReturn(
@@ -84,7 +83,7 @@ function addAndReturn(
   console.log(message.type, "WILL SEND TO", location, "EXCEPT", except);
 }
 
-function sendReset(lobby: Lobby, message: Message) {
+function sendReset(lobby: LobbyServer, message: Message) {
   let cardMessage: Message = {
     playerId: null,
     type: "reset",
@@ -116,7 +115,7 @@ function sendReset(lobby: Lobby, message: Message) {
       ];
       addAndReturn(
         cardMessage,
-        socketList.get(lobby.id)[lobby.players[i].playerId.inGameId],
+        lobby.socketList[lobby.players[i].playerId.inGameId],
         null,
         false
       );
@@ -124,7 +123,7 @@ function sendReset(lobby: Lobby, message: Message) {
       addAndReturn(
         cardMessage,
         lobby.id,
-        socketList.get(lobby.id)[lobby.players[i].playerId.inGameId],
+        lobby.socketList[lobby.players[i].playerId.inGameId],
         true
       );
     }
@@ -145,10 +144,9 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
 io.on("connection", (socket) => {
   console.log("user connected", Date.now());
   socket.on("getMessages", async (lobbyId: string, callback) => {
-    let messages: Message[] = messageLists.get(lobbyId);
     //console.log(lobbyId, messageLists.get(lobbyId));
     callback({
-      messages: messages,
+      messages: lobbies.get(lobbyId).messageList,
     });
   });
   socket.on("joinLobby", (room: string) => {
@@ -196,7 +194,7 @@ io.on("connection", (socket) => {
       err = true;
     } else {
       lobby.players.push(player);
-      socketList.get(message.lobbyId).push(socket.id);
+      lobby.socketList.push(socket.id);
       addAndReturn(message, null, null, true);
     }
 

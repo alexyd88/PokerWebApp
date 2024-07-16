@@ -275,9 +275,10 @@ export interface Lobby {
 
 export interface LobbyServer extends Lobby {
   socketList: string[];
+  messageList: Message[];
 }
 
-export function createLobbyServer(): Lobby {
+export function createLobbyServer(): LobbyServer {
   const seats: number[] = [];
   for (let i = 0; i < 10; i++) seats.push(-1);
   return {
@@ -288,6 +289,8 @@ export function createLobbyServer(): Lobby {
     host: 0,
     messages: [],
     gameInfo: createLobbyGameInfo(),
+    socketList: [],
+    messageList: [],
   };
 }
 
@@ -316,6 +319,7 @@ export interface PlayerGameInfo {
   chipsInPot: number;
   chipsThisRound: number;
   inPot: boolean;
+  hasHoleCards: boolean;
   card1: Card;
   card2: Card;
   fullHand: Card[];
@@ -324,7 +328,7 @@ export interface PlayerGameInfo {
   away: boolean;
 }
 
-export function playerGameInfoToString(player: Player, isUser: boolean) {
+export function playerGameInfoToString(player: Player) {
   const gameInfo: PlayerGameInfo = player.gameInfo;
   let s =
     "stack: " +
@@ -338,7 +342,7 @@ export function playerGameInfoToString(player: Player, isUser: boolean) {
     gameInfo.card1.suit +
     gameInfo.card2.numDisplay +
     gameInfo.card2.suit;
-  if (isUser)
+  if (gameInfo.hasHoleCards)
     s +=
       " | " +
       cardsToString(gameInfo.fullHand) +
@@ -382,6 +386,7 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     chipsInPot: 0,
     chipsThisRound: 0,
     inPot: false,
+    hasHoleCards: false,
     card1: { num: 999, suit: "oops", numDisplay: "oops2" },
     card2: { num: 999, suit: "oops", numDisplay: "oops2" },
     fullHand: [],

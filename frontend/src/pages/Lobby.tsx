@@ -246,11 +246,12 @@ export function Lobby() {
       case "showCards": {
         for (let i = 0; i < message.cardsShown.length; i++) {
           const showCards: ShowCards = message.cardsShown[i];
-          updateHoleCards(
-            lobby.players[showCards.inGameId].gameInfo,
-            showCards.card1,
-            showCards.card2
-          );
+          if (!lobby.players[showCards.inGameId].gameInfo.hasHoleCards)
+            updateHoleCards(
+              lobby.players[showCards.inGameId].gameInfo,
+              showCards.card1,
+              showCards.card2
+            );
         }
         updatePlayerBestHand(lobby);
         for (let i = 0; i < lobby.players.length; i++)
@@ -344,10 +345,7 @@ export function Lobby() {
             {user == -1
               ? "empty"
               : reactLobby.players[user].playerId.name +
-                playerGameInfoToString(
-                  reactLobby.players[user],
-                  user == reactPlayerId?.inGameId
-                )}
+                playerGameInfoToString(reactLobby.players[user])}
           </li>
         );
       })}

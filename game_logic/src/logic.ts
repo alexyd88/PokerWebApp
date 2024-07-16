@@ -35,7 +35,10 @@ export function updateHoleCards(
   card1: Card,
   card2: Card
 ) {
-  if (playerInfo.away) return;
+  if (playerInfo.away) {
+    console.log("HOW ARE U HERE?");
+  }
+  playerInfo.hasHoleCards = true;
   playerInfo.card1 = card1;
   playerInfo.card2 = card2;
   playerInfo.fullHand.push(playerInfo.card1);
@@ -203,25 +206,28 @@ export function showdown(lobby: Lobby): ActionResult {
     const singlePayout = Math.floor(totalPayout / winners.length);
     //console.log(totalPayout, winners.length, singlePayout);
     for (let j = 0; j < winners.length; j++) {
+      //console.log(winners[j]);
       let player = lobby.players[winners[j]].gameInfo;
       takeFromPot(lg, player, singlePayout);
       totalPayout -= singlePayout;
     }
-    for (let j = lg.dealerChip + 1; j < lobby.players.length; j++) {
-      const isInWinner = (element: number) => element == j;
-      let player = lobby.players[winners[j]].gameInfo;
-      if (totalPayout > 0 && winners.findIndex(isInWinner) != -1) {
-        takeFromPot(lg, player, totalPayout);
-        totalPayout = 0;
-      }
+
+    let seat = findNext(lobby, lg.dealerChip);
+    let start = seat;
+    let player = lobby.players[lobby.seats[seat]].gameInfo;
+    const isInWinner = (element: number) => element == lobby.seats[seat];
+    if (totalPayout > 0 && winners.findIndex(isInWinner) != -1) {
+      takeFromPot(lg, player, totalPayout);
+      totalPayout = 0;
     }
-    for (let j = 0; j < lg.dealerChip + 1; j++) {
-      const isInWinner = (element: number) => element == j;
+    seat = findNext(lobby, seat);
+    while (seat != start) {
+      player = lobby.players[lobby.seats[seat]].gameInfo;
       if (totalPayout > 0 && winners.findIndex(isInWinner) != -1) {
-        let player = lobby.players[winners[j]].gameInfo;
         takeFromPot(lg, player, totalPayout);
         totalPayout = 0;
       }
+      seat = findNext(lobby, seat);
     }
   }
 
