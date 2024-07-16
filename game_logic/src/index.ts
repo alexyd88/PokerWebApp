@@ -442,7 +442,7 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
       let numPlayers = 0;
       for (let i = 0; i < 10; i++) {
         if (lobby.seats[i] == -1) continue;
-        let player = lobby.players[lobby.seats[i]].gameInfo;
+        let player: PlayerGameInfo = lobby.players[lobby.seats[i]].gameInfo;
         if (!player.away && player.stack != 0) numPlayers++;
       }
       if (numPlayers < 2) return "Not enough players";
@@ -503,13 +503,13 @@ export function runAction(
   lg.numPlayedThisRound++;
   let curPlayer: PlayerGameInfo = createPlayerGameInfo();
   if (message.action != "start") {
-    console.log(lg.curPlayer);
-    console.log(lobby.seats);
-    console.log(lobby.players);
-    console.log(lobby.players[lobby.seats[lg.curPlayer]].gameInfo);
+    // console.log(lg.curPlayer);
+    // console.log(lobby.seats);
+    // console.log(lobby.players);
+    // console.log(lobby.players[lobby.seats[lg.curPlayer]].gameInfo);
     curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
 
-    console.log(lobby.players, lobby.seats, lg.curPlayer);
+    //console.log(lobby.players, lobby.seats, lg.curPlayer);
   }
 
   switch (message.action) {

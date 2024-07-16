@@ -119,7 +119,7 @@ function checkIfShouldShow(
   if (player.inPot) {
     if (
       bestHand.length == 0 ||
-      compareHands(player.curBestHand, bestHand) == 1
+      compareHands(player.curBestHand, bestHand) != -1
     ) {
       cardsShown.push({
         inGameId: lobby.players[lobby.seats[seat]].playerId.inGameId,
