@@ -97,12 +97,18 @@ type MessagePauseToggle = {
   type: "pauseToggle";
 };
 
+type MessageShowMyCards = {
+  type: "showMyCards";
+};
+
 export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageAction
   | MessageChat
   | MessageAddPlayer
   | MessageSetPlayer
   | MessageSit
+  | MessagePauseToggle
+  | MessageShowMyCards
 );
 
 export type MessageWithoutPlayerId = { playerId: null } & (
@@ -111,7 +117,6 @@ export type MessageWithoutPlayerId = { playerId: null } & (
   | MessageShowCards
   | MessageReset
   | MessageShowdown
-  | MessagePauseToggle
 );
 
 export type Message = MessageCommon &
@@ -295,6 +300,10 @@ export interface LobbyServer extends Lobby {
   queuedMessage: Message | null;
 }
 
+export interface LobbyClient extends Lobby {
+  canShowHoleCards: boolean;
+}
+
 export function createLobbyServer(): LobbyServer {
   const seats: number[] = [];
   for (let i = 0; i < 10; i++) seats.push(-1);
@@ -314,7 +323,7 @@ export function createLobbyServer(): LobbyServer {
   };
 }
 
-export function createLobbyClient(id: string): Lobby {
+export function createLobbyClient(id: string): LobbyClient {
   const seats: number[] = [];
   for (let i = 0; i < 10; i++) seats.push(-1);
   return {
@@ -326,6 +335,7 @@ export function createLobbyClient(id: string): Lobby {
     gameInfo: createLobbyGameInfo(),
     isPaused: false,
     state: "nothing",
+    canShowHoleCards: true,
   };
 }
 

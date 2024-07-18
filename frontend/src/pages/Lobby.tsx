@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import type {
   Lobby,
+  LobbyClient,
   Message,
   MessageWithPlayerId,
   PlayerId,
@@ -33,12 +34,12 @@ import { io, Socket } from "socket.io-client";
 
 export function Lobby() {
   const lobbyId = useParams().lobbyId;
-  const [reactLobby, setReactLobby] = useState<Lobby | null>(null);
+  const [reactLobby, setReactLobby] = useState<LobbyClient | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [reactPlayerId, setPlayerId] = useState<PlayerId | null>(null);
   const [lastActionTime, setLastActionTime] = useState<number | null>(null);
   const [timer, setTimer] = useState<number | null>(null);
-  let lobby: Lobby = createLobbyClient("LMAO DUMBASS");
+  let lobby: LobbyClient = createLobbyClient("LMAO DUMBASS");
   let playerId: PlayerId | null = null;
   if (lobbyId != null) lobby = createLobbyClient(lobbyId);
   function displayWarning(warning: string) {
@@ -74,6 +75,9 @@ export function Lobby() {
   }
   function togglePause() {
     handleButton("pauseToggle");
+  }
+  function showCards() {
+    handleButton("showMyCards");
   }
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
@@ -146,12 +150,23 @@ export function Lobby() {
         const message: Message = {
           id: -1,
           type: "pauseToggle",
-          playerId: null,
+          playerId: playerId,
           lobbyId: lobbyId,
           date: Date.now(),
         };
         socket?.emit("message", message);
         console.log("clicked pause");
+        break;
+      }
+      case "showMyCards": {
+        const message: Message = {
+          id: -1,
+          type: "showMyCards",
+          playerId: playerId,
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
         break;
       }
       case "start":
@@ -271,12 +286,16 @@ export function Lobby() {
       case "showCards": {
         for (let i = 0; i < message.cardsShown.length; i++) {
           const showCards: ShowCards = message.cardsShown[i];
-          if (!lobby.players[showCards.inGameId].gameInfo.hasHoleCards)
+          if (!lobby.players[showCards.inGameId].gameInfo.hasHoleCards) {
             updateHoleCards(
               lobby.players[showCards.inGameId].gameInfo,
               showCards.card1,
               showCards.card2
             );
+          } else {
+            console.log("i had to show my hole cards ;(");
+            lobby.canShowHoleCards = false;
+          }
         }
         updatePlayerBestHand(lobby);
         for (let i = 0; i < lobby.players.length; i++)
@@ -294,6 +313,7 @@ export function Lobby() {
       }
       case "reset": {
         resetHand(lobby, true, message.dealerChip);
+        lobby.canShowHoleCards = true;
         updateIsWaiting(message.date);
         break;
       }
@@ -430,6 +450,11 @@ export function Lobby() {
       <button onClick={fold}>fold</button>
       <button onClick={call}>call</button>
       <button onClick={check}>check</button>
+      {reactLobby?.canShowHoleCards && reactLobby?.state == "showdown" ? (
+        <button onClick={showCards}>show cards</button>
+      ) : (
+        ""
+      )}
       <div></div>
       {reactLobby?.host == reactPlayerId?.inGameId ? (
         <div>

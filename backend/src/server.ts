@@ -268,6 +268,16 @@ function handleMessage(message: Message) {
       };
       break;
     }
+    case "showMyCards": {
+      let cardsShown: ShowCards[] = [];
+      cardsShown.push({
+        inGameId: message.playerId.inGameId,
+        card1: lobby.players[message.playerId.inGameId].gameInfo.card1,
+        card2: lobby.players[message.playerId.inGameId].gameInfo.card2,
+      });
+      sendCardsShown(lobby, cardsShown);
+      break;
+    }
     case "action": {
       if (message.type != "action") {
         console.log("WTF");
