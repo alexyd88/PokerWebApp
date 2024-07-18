@@ -34,7 +34,11 @@ function isFlush(hand: Card[]) {
 
 function isStraight(hand: Card[]) {
   for (let i = 1; i < 5; i++) {
-    if (hand[i].num != hand[i - 1].num + 1) return false;
+    if (
+      hand[i].num != hand[i - 1].num + 1 ||
+      (hand[i].num == 14 && hand[i - 1].num == 4)
+    )
+      return false;
   }
   return true;
 }
@@ -165,6 +169,14 @@ export function compareHands(hand1: Card[], hand2: Card[]) {
   }
   if (isStraight(a) != isStraight(b)) return boolToInt(isStraight(a));
   if (isStraight(a) && isStraight(b)) {
+    if (a[4].num == 14 && a[3].num == 4) {
+      a[4].num = 1;
+      a.sort(sortBy);
+    }
+    if (b[4].num == 14 && b[3].num == 4) {
+      b[4].num = 1;
+      b.sort(sortBy);
+    }
     if (a[4].num != b[4].num) return boolToInt(a[4].num > b[4].num);
     return 0;
   }
