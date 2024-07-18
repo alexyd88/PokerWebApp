@@ -346,10 +346,8 @@ export function Lobby() {
 
   useEffect(() => {
     function updateTimer() {
-      console.log("set time?");
       if (lastActionTime != null) {
         setTimer(TURN_TIME - (Date.now() - lastActionTime));
-        console.log("set time", Date.now() - lastActionTime);
       }
     }
     const interval = setInterval(updateTimer, 500);

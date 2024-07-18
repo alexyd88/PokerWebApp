@@ -30,6 +30,7 @@ import {
   setPlayerNameServer,
   SHOWDOWN_TIME,
   sit,
+  TURN_TIME,
 } from "game_logic";
 import { lobbies } from "./controllers/lobbies";
 import { send } from "node:process";
@@ -134,6 +135,7 @@ function sendReset(lobby: LobbyServer, message: Message) {
       );
     }
   }
+  expectAction(lobby);
 }
 
 function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
@@ -146,6 +148,22 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
     playerId: null,
   };
   addAndReturn(cardMessage, lobby.id, null, true);
+}
+
+//expects curplayer to be real player
+function expectAction(lobby: LobbyServer) {
+  clearTimeout(lobby.timeout);
+  lobby.timeout = setTimeout(
+    autoAction,
+    TURN_TIME,
+    lobby,
+    lobby.players[lobby.seats[lobby.gameInfo.curPlayer]]
+  ) as unknown as number;
+}
+
+function sendCommunityCards(lobby: LobbyServer, message: Message) {
+  addAndReturn(message, lobby.id, null, true);
+  expectAction(lobby);
 }
 
 function autoAction(lobby: Lobby, player: Player) {
@@ -175,14 +193,13 @@ function autoAction(lobby: Lobby, player: Player) {
 
 function handleMessage(message: Message) {
   addAndReturn(message, null, null, true);
-
+  const lobby = lobbies.get(message.lobbyId);
   switch (message.type) {
     case "chat": {
       //nothing special
       break;
     }
     case "setPlayerName": {
-      const lobby = lobbies.get(message.lobbyId);
       setPlayerNameServer(lobby, message.playerId);
       break;
     }
@@ -215,6 +232,11 @@ function handleMessage(message: Message) {
         console.log("WHAT THE FUCK");
         return;
       }
+      if (message.action == "start") {
+        sendReset(lobby, message);
+      }
+
+      // new cards
       if (actionResult.cards.length != 0) {
         const cardMessage: Message = {
           date: Date.now(),
@@ -224,12 +246,15 @@ function handleMessage(message: Message) {
           id: -1,
           cards: actionResult.cards,
         };
-        setTimeout(addAndReturn, NEW_CARD_TIME, cardMessage, null, null, true);
+        clearTimeout(lobby.timeout);
+        lobby.timeout = setTimeout(
+          sendCommunityCards,
+          NEW_CARD_TIME,
+          cardMessage
+        );
       }
-      if (message.action == "start") {
-        sendReset(lobby, message);
-      }
-      if (actionResult.calledHandEnd) {
+      // end of hand
+      else if (actionResult.calledHandEnd) {
         let lobby = lobbies.get(message.lobbyId);
         sendCardsShown(lobby, actionResult.cardsShown);
         const showdownMessage: Message = {
@@ -241,7 +266,17 @@ function handleMessage(message: Message) {
         };
         addAndReturn(showdownMessage, null, null, true);
         resetHand(lobby, false);
-        setTimeout(sendReset, SHOWDOWN_TIME, lobby, message);
+        clearTimeout(lobby.timeout);
+        lobby.timeout = setTimeout(
+          sendReset,
+          SHOWDOWN_TIME,
+          lobby,
+          message
+        ) as unknown as number;
+      }
+      // just regular move??
+      else {
+        expectAction(lobby);
       }
       break;
     }

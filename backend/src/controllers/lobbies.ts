@@ -23,6 +23,7 @@ export const addLobby: RequestHandler = async (req, res, next) => {
 };
 
 export function removeLobby(id: string) {
+  window.clearTimeout(lobbies.get(id).timeout);
   lobbies.delete(id);
 }
 

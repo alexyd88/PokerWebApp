@@ -283,6 +283,7 @@ export interface Lobby {
 export interface LobbyServer extends Lobby {
   socketList: string[];
   messageList: Message[];
+  timeout: number;
 }
 
 export function createLobbyServer(): LobbyServer {
@@ -297,6 +298,7 @@ export function createLobbyServer(): LobbyServer {
     gameInfo: createLobbyGameInfo(),
     socketList: [],
     messageList: [],
+    timeout: -1,
   };
 }
 
@@ -355,7 +357,10 @@ export function playerGameInfoToString(player: Player, lobby: Lobby) {
       cardsToString(gameInfo.curBestHand) +
       " | " +
       strengthToString(gameInfo.curHandStrength);
-  if (lobby.gameInfo.curPlayer == player.playerId.seat)
+  if (
+    lobby.gameInfo.isWaitingForAction &&
+    lobby.gameInfo.curPlayer == player.playerId.seat
+  )
     s += " <---- this guys turn";
   return s;
   // (player.playerId.seat == lobby.gameInfo.curPlayer)
@@ -491,7 +496,6 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
           curPlayer.chipsThisRound != lg.maxChipsThisRound &&
           curPlayer.stack != 0
         ) {
-          console.log("chis", curPlayer.chipsThisRound, lg.maxChipsThisRound);
           lg.numPlayedThisRound--;
           return "Cannot check";
         }

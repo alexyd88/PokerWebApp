@@ -69,8 +69,6 @@ export function shuffleAndDeal(lobby: Lobby) {
       return;
     }
     updateHoleCards(players[i].gameInfo, card1, card2);
-
-    console.log("dealt");
   }
 }
 
@@ -139,9 +137,18 @@ function checkIfShouldShow(
 }
 
 function findShowCards(lobby: Lobby): ActionResult {
-  let lg = lobby.gameInfo;
-  let bestHand: Card[] = [];
   let cardsShown: ShowCards[] = [];
+  let lg = lobby.gameInfo;
+  if (lg.numInPot < 2) {
+    console.log("SHOULDN'T BE POSSIBLE");
+    return {
+      isWaitingForAction: false,
+      cards: [],
+      calledHandEnd: true,
+      cardsShown: cardsShown,
+    };
+  }
+  let bestHand: Card[] = [];
   if (lg.lastAggressivePerson == -1)
     lg.lastAggressivePerson = findNext(lobby, lg.dealerChip);
   const start = lg.lastAggressivePerson;
@@ -339,6 +346,7 @@ export function resetHand(lobby: Lobby, isClient: boolean) {
     player.curHandStrength = -1;
     player.curBestHand.length = 0;
     player.chipsThisRound = 0;
+    player.hasHoleCards = false;
     player.card1 = { num: 0, numDisplay: "?", suit: "?" };
     player.card2 = { num: 0, numDisplay: "?", suit: "?" };
   }
