@@ -8,6 +8,7 @@ import {
   LobbyGameInfo,
   Player,
   PlayerGameInfo,
+  SEATS_NUMBER,
   ShowCards,
 } from "./index";
 
@@ -84,7 +85,7 @@ export function deal(lobby: Lobby, card: Card | null): Card {
 }
 
 export function findNext(lobby: Lobby, position: number) {
-  for (let i = position + 1; i < 10; i++)
+  for (let i = position + 1; i < SEATS_NUMBER; i++)
     if (lobby.seats[i] != -1 && lobby.players[lobby.seats[i]].gameInfo.inPot)
       return i;
   for (let i = 0; i < position; i++)
@@ -161,7 +162,6 @@ function findShowCards(lobby: Lobby): ActionResult {
     checkIfShouldShow(lobby, player, bestHand, cardsShown, seat);
     seat = findNext(lobby, seat);
   }
-  lg.isWaitingForAction = false;
   return {
     isWaitingForAction: false,
     cards: [],
@@ -171,6 +171,7 @@ function findShowCards(lobby: Lobby): ActionResult {
 }
 
 export function showdown(lobby: Lobby): ActionResult {
+  lobby.state = "showdown";
   let lg = lobby.gameInfo;
   if (lg.numInPot == 1) {
     for (let i = 0; i < lobby.players.length; i++)
@@ -250,7 +251,7 @@ export function showdown(lobby: Lobby): ActionResult {
 
 export function endRound(lobby: Lobby, isClient: boolean): ActionResult {
   let lg = lobby.gameInfo;
-  lg.isWaitingForAction = false;
+  lobby.state = "dealing";
   lg.numPlayedThisRound = 0;
   lg.curRound++;
   lg.curRaise = -1;
@@ -327,18 +328,19 @@ export function takeFromPot(
   lobby.totalPot -= +x;
 }
 
-export function resetHand(lobby: Lobby, isClient: boolean) {
+export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
   console.log("called reset yo");
   lobby.gameInfo.gameStarted = true;
   let players: Player[] = lobby.players;
   let lg = lobby.gameInfo;
-  lobby.gameInfo.isWaitingForAction = true;
+  lobby.state = "waitingForAction";
   lg.numInPot = 0;
   lg.totalPot = 0;
   for (let i = 0; i < lobby.players.length; i++) {
     let player = players[i].gameInfo;
     player.inPot = false;
-    for (let j = 0; j < 10; j++) if (lobby.seats[j] == i) player.inPot = true;
+    for (let j = 0; j < SEATS_NUMBER; j++)
+      if (lobby.seats[j] == i) player.inPot = true;
     if (player.away) player.inPot = false;
     if (player.inPot) lobby.gameInfo.numInPot++;
     player.chipsInPot = 0;
@@ -354,7 +356,11 @@ export function resetHand(lobby: Lobby, isClient: boolean) {
     lg.gameStarted = false;
     // end game or something
   }
-  lg.dealerChip = findNext(lobby, lg.dealerChip);
+  if (!isClient) {
+    lg.dealerChip = findNext(lobby, lg.dealerChip);
+  } else {
+    lg.dealerChip = dealerChip;
+  }
   lg.board.length = 0;
   const sb = findNext(lobby, lg.dealerChip);
   raise(
@@ -375,4 +381,20 @@ export function resetHand(lobby: Lobby, isClient: boolean) {
   lg.curRaise = lg.bigBlind;
   lg.numPlayedThisRound = 0;
   if (!isClient) shuffleAndDeal(lobby);
+}
+
+export function getRandSeat(lobby: Lobby) {
+  let numPlayers: number = 0;
+  for (let i = 0; i < SEATS_NUMBER; i++) {
+    if (lobby.seats[i] != -1 && !lobby.players[lobby.seats[i]].gameInfo.away) {
+      numPlayers++;
+    }
+  }
+  let randSeat = getRandInt(0, numPlayers);
+  for (let i = 0; i < SEATS_NUMBER; i++) {
+    if (lobby.seats[i] != -1 && !lobby.players[lobby.seats[i]].gameInfo.away) {
+      if (randSeat == 0) return i;
+      randSeat--;
+    }
+  }
 }

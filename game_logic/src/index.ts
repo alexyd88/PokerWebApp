@@ -56,6 +56,7 @@ type MessageShowCards = {
 
 type MessageReset = {
   type: "reset";
+  dealerChip: number;
 };
 
 export function createMessageAction(
@@ -92,6 +93,10 @@ type MessageStart = {
   type: "start";
 };
 
+type MessagePauseToggle = {
+  type: "pauseToggle";
+};
+
 export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageAction
   | MessageChat
@@ -106,6 +111,7 @@ export type MessageWithoutPlayerId = { playerId: null } & (
   | MessageShowCards
   | MessageReset
   | MessageShowdown
+  | MessagePauseToggle
 );
 
 export type Message = MessageCommon &
@@ -233,6 +239,8 @@ export function createAction(
   };
 }
 
+type stateTypes = "waitingForAction" | "dealing" | "showdown" | "nothing";
+
 export interface LobbyGameInfo {
   maxChipsInPot: number;
   bigBlind: number;
@@ -246,7 +254,6 @@ export interface LobbyGameInfo {
   maxChipsThisRound: number;
   totalPot: number;
   lastAggressivePerson: number; //seat of last aggressive person
-  isWaitingForAction: boolean;
   deck: Card[];
   board: Card[];
 }
@@ -265,7 +272,6 @@ export function createLobbyGameInfo(): LobbyGameInfo {
     maxChipsThisRound: 2,
     totalPot: 3,
     lastAggressivePerson: -1,
-    isWaitingForAction: false,
     deck: [],
     board: [],
   };
@@ -278,6 +284,8 @@ export interface Lobby {
   host: number; //player ingameid
   gameInfo: LobbyGameInfo;
   messages: Message[];
+  isPaused: boolean;
+  state: stateTypes;
 }
 
 export interface LobbyServer extends Lobby {
@@ -299,6 +307,8 @@ export function createLobbyServer(): LobbyServer {
     socketList: [],
     messageList: [],
     timeout: -1,
+    isPaused: false,
+    state: "nothing",
   };
 }
 
@@ -312,6 +322,8 @@ export function createLobbyClient(id: string): Lobby {
     seats: seats,
     messages: [],
     gameInfo: createLobbyGameInfo(),
+    isPaused: false,
+    state: "nothing",
   };
 }
 
@@ -358,7 +370,7 @@ export function playerGameInfoToString(player: Player, lobby: Lobby) {
       " | " +
       strengthToString(gameInfo.curHandStrength);
   if (
-    lobby.gameInfo.isWaitingForAction &&
+    lobby.state == "waitingForAction" &&
     lobby.gameInfo.curPlayer == player.playerId.seat
   )
     s += " <---- this guys turn";
@@ -537,8 +549,6 @@ export function runAction(
 
   switch (message.action) {
     case "start": {
-      //this makes it optimal to sit after large gap :skull: but its whatever for now
-      if (!isClient) resetHand(lobby, isClient);
       return {
         isWaitingForAction: false,
         cards: [],
@@ -605,7 +615,7 @@ export function runAction(
     cardsShown: [],
   };
   lg.curPlayer = findNext(lobby, lg.curPlayer);
-  lg.isWaitingForAction = true;
+  lobby.state = "waitingForAction";
   if (doneRound) actionResult = endRound(lobby, isClient);
   //implement autocheck if only one person has chips
   return actionResult;

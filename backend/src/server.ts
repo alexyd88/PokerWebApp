@@ -22,6 +22,7 @@ import {
   createPlayerGameInfo,
   createPlayerId,
   getErrorFromAction,
+  getRandSeat,
   messageToString,
   NEW_CARD_TIME,
   prepareMessageForClient,
@@ -68,6 +69,7 @@ function addAndReturn(
   except: string | null,
   wantAdd: boolean
 ) {
+  if (message.date == undefined) console.log(message);
   message.date = Date.now();
   if (location == null) location = message.lobbyId;
   if (wantAdd) addMessage(message);
@@ -89,11 +91,13 @@ function addAndReturn(
 }
 
 function sendReset(lobby: LobbyServer, message: Message) {
+  resetHand(lobby, false, -1);
   let cardMessage: Message = {
     date: Date.now(),
     playerId: null,
     type: "reset",
     lobbyId: message.lobbyId,
+    dealerChip: lobby.gameInfo.dealerChip,
     id: -1,
   };
   addAndReturn(cardMessage, null, null, true);
@@ -153,6 +157,7 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
 //expects curplayer to be real player
 function expectAction(lobby: LobbyServer) {
   clearTimeout(lobby.timeout);
+  lobby.state = "waitingForAction";
   lobby.timeout = setTimeout(
     autoAction,
     TURN_TIME,
@@ -207,6 +212,11 @@ function handleMessage(message: Message) {
       sit(lobbies.get(message.lobbyId), message.playerId, message.location);
       break;
     }
+    case "pauseToggle": {
+      if (lobby.isPaused) {
+      }
+      break;
+    }
     case "action": {
       if (message.type != "action") {
         console.log("WTF");
@@ -233,6 +243,7 @@ function handleMessage(message: Message) {
         return;
       }
       if (message.action == "start") {
+        lobby.gameInfo.dealerChip = getRandSeat(lobby);
         sendReset(lobby, message);
       }
 
@@ -250,8 +261,9 @@ function handleMessage(message: Message) {
         lobby.timeout = setTimeout(
           sendCommunityCards,
           NEW_CARD_TIME,
+          lobby,
           cardMessage
-        );
+        ) as unknown as number;
       }
       // end of hand
       else if (actionResult.calledHandEnd) {
@@ -265,7 +277,6 @@ function handleMessage(message: Message) {
           id: -1,
         };
         addAndReturn(showdownMessage, null, null, true);
-        resetHand(lobby, false);
         clearTimeout(lobby.timeout);
         lobby.timeout = setTimeout(
           sendReset,
@@ -281,6 +292,8 @@ function handleMessage(message: Message) {
       break;
     }
   }
+  console.log(lobby.gameInfo.dealerChip);
+  console.log(lobby.state);
 }
 
 io.on("connection", (socket) => {

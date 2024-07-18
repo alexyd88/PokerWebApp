@@ -140,6 +140,17 @@ export function Lobby() {
         }
         break;
       }
+      case "pauseToggle": {
+        const message: Message = {
+          id: -1,
+          type: "pauseToggle",
+          playerId: null,
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
+        break;
+      }
       case "start":
       case "raise":
       case "call":
@@ -147,7 +158,8 @@ export function Lobby() {
       case "check": {
         if (
           button != "start" &&
-          lobby.seats[lobby.gameInfo.curPlayer] != playerId.inGameId
+          (lobby.seats[lobby.gameInfo.curPlayer] != playerId.inGameId ||
+            lobby.state != "waitingForAction")
         ) {
           displayWarning("not your turn lmao");
           return;
@@ -250,7 +262,7 @@ export function Lobby() {
         }
         updatePlayerBestHand(lobby);
         updateIsWaiting(message.date);
-        lobby.gameInfo.isWaitingForAction = true;
+        lobby.state = "waitingForAction";
         break;
       }
       case "showCards": {
@@ -278,15 +290,18 @@ export function Lobby() {
         break;
       }
       case "reset": {
-        resetHand(lobby, true);
+        resetHand(lobby, true, message.dealerChip);
         updateIsWaiting(message.date);
         break;
+      }
+      case "pauseToggle": {
+        lobby.isPaused = true;
       }
     }
   }
 
   function updateIsWaiting(time: number) {
-    lobby.gameInfo.isWaitingForAction = true;
+    lobby.state = "waitingForAction";
     setLastActionTime(time);
     setTimer(TURN_TIME - (Date.now() - time));
   }
@@ -377,10 +392,10 @@ export function Lobby() {
           </li>
         );
       })}
-      <div>isWaitingForAction:{reactLobby?.gameInfo.isWaitingForAction}</div>
+      <div>state:{reactLobby?.state}</div>
       <div>
         time{" "}
-        {reactLobby?.gameInfo.isWaitingForAction && timer != null ? timer : ""}
+        {reactLobby?.state == "waitingForAction" && timer != null ? timer : ""}
       </div>
       <input type="text" id="name" />
       <button onClick={playerNameSubmit}>join</button>
