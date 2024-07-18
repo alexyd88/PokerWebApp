@@ -172,6 +172,7 @@ export function compareHands(hand1: Card[], hand2: Card[]) {
   if (isStraight(a) != isStraight(b)) return boolToInt(isStraight(a));
   if (isStraight(a) && isStraight(b)) {
     if (a[3].num != b[3].num) return boolToInt(a[3].num > b[3].num);
+    if (a[4].num == 14 || b[4].num == 14) return boolToInt(a[4].num < b[4].num);
     return 0;
   }
   if (isTrips(a) != isTrips(b)) return boolToInt(isTrips(a));
