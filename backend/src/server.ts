@@ -90,16 +90,21 @@ function addAndReturn(
   console.log(message.type, "WILL SEND TO", location, "EXCEPT", except);
 }
 
-function sendReset(lobby: LobbyServer, message: Message) {
-  resetHand(lobby, false, -1);
+function createResetMessage(lobby: LobbyServer): Message {
   let cardMessage: Message = {
     date: Date.now(),
     playerId: null,
     type: "reset",
-    lobbyId: message.lobbyId,
+    lobbyId: lobby.id,
     dealerChip: lobby.gameInfo.dealerChip,
     id: -1,
   };
+  return cardMessage;
+}
+
+function sendReset(lobby: LobbyServer, message: Message) {
+  resetHand(lobby, false, -1);
+  let cardMessage: Message = createResetMessage(lobby);
   addAndReturn(cardMessage, null, null, true);
   cardMessage = {
     date: Date.now(),
@@ -158,12 +163,18 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
 function expectAction(lobby: LobbyServer) {
   clearTimeout(lobby.timeout);
   lobby.state = "waitingForAction";
-  lobby.timeout = setTimeout(
-    autoAction,
-    TURN_TIME,
+
+  let message: Message = getAutoAction(
     lobby,
     lobby.players[lobby.seats[lobby.gameInfo.curPlayer]]
+  );
+
+  lobby.timeout = setTimeout(
+    handleMessage,
+    TURN_TIME,
+    message
   ) as unknown as number;
+  lobby.queuedMessage = message;
 }
 
 function sendCommunityCards(lobby: LobbyServer, message: Message) {
@@ -171,7 +182,7 @@ function sendCommunityCards(lobby: LobbyServer, message: Message) {
   expectAction(lobby);
 }
 
-function autoAction(lobby: Lobby, player: Player) {
+function getAutoAction(lobby: Lobby, player: Player): Message {
   if (lobby.seats[lobby.gameInfo.curPlayer] != player.playerId.inGameId) {
     console.log("somehow this mf beat the clock barely??");
     return;
@@ -193,7 +204,35 @@ function autoAction(lobby: Lobby, player: Player) {
     console.log("how can this guy not do anything??", error);
     return;
   }
-  handleMessage(message);
+  return message;
+}
+
+function requeueMessage(lobby: LobbyServer) {
+  clearTimeout(lobby.timeout);
+  if (lobby.queuedMessage == null) return;
+  if (lobby.queuedMessage.type == "action") {
+    lobby.timeout = setTimeout(
+      handleMessage,
+      TURN_TIME,
+      lobby.queuedMessage
+    ) as unknown as number;
+  } else if (lobby.queuedMessage.type == "newCommunityCards") {
+    lobby.timeout = setTimeout(
+      sendCommunityCards,
+      NEW_CARD_TIME,
+      lobby,
+      lobby.queuedMessage
+    ) as unknown as number;
+  } else if (lobby.queuedMessage.type == "reset") {
+    lobby.timeout = setTimeout(
+      sendReset,
+      SHOWDOWN_TIME,
+      lobby,
+      lobby.queuedMessage
+    ) as unknown as number;
+  } else {
+    console.log("how are u here?", lobby.queuedMessage);
+  }
 }
 
 function handleMessage(message: Message) {
@@ -214,7 +253,19 @@ function handleMessage(message: Message) {
     }
     case "pauseToggle": {
       if (lobby.isPaused) {
+        lobby.isPaused = false;
+        requeueMessage(lobby);
+      } else {
+        lobby.isPaused = true;
+        clearTimeout(lobby.timeout);
       }
+      const message: Message = {
+        type: "pauseToggle",
+        id: -1,
+        lobbyId: lobby.id,
+        date: Date.now(),
+        playerId: null,
+      };
       break;
     }
     case "action": {
@@ -249,6 +300,7 @@ function handleMessage(message: Message) {
 
       // new cards
       if (actionResult.cards.length != 0) {
+        console.log("NEW CARDS INCOMING");
         const cardMessage: Message = {
           date: Date.now(),
           type: "newCommunityCards",
@@ -264,6 +316,7 @@ function handleMessage(message: Message) {
           lobby,
           cardMessage
         ) as unknown as number;
+        lobby.queuedMessage = cardMessage;
       }
       // end of hand
       else if (actionResult.calledHandEnd) {
@@ -284,6 +337,7 @@ function handleMessage(message: Message) {
           lobby,
           message
         ) as unknown as number;
+        lobby.queuedMessage = createResetMessage(lobby);
       }
       // just regular move??
       else {

@@ -72,7 +72,9 @@ export function Lobby() {
   function check() {
     handleButton("check");
   }
-
+  function togglePause() {
+    handleButton("pauseToggle");
+  }
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
     playerId = JSON.parse(JSON.stringify(reactPlayerId));
@@ -149,6 +151,7 @@ export function Lobby() {
           date: Date.now(),
         };
         socket?.emit("message", message);
+        console.log("clicked pause");
         break;
       }
       case "start":
@@ -295,7 +298,13 @@ export function Lobby() {
         break;
       }
       case "pauseToggle": {
-        lobby.isPaused = true;
+        if (lobby.isPaused) {
+          lobby.isPaused = false;
+          if (lobby.state == "waitingForAction") updateIsWaiting(message.date);
+        } else {
+          lobby.isPaused = true;
+        }
+        console.log("paused: ", lobby.isPaused);
       }
     }
   }
@@ -395,7 +404,11 @@ export function Lobby() {
       <div>state:{reactLobby?.state}</div>
       <div>
         time{" "}
-        {reactLobby?.state == "waitingForAction" && timer != null ? timer : ""}
+        {reactLobby?.state == "waitingForAction" &&
+        timer != null &&
+        !reactLobby.isPaused
+          ? timer
+          : ""}
       </div>
       <input type="text" id="name" />
       <button onClick={playerNameSubmit}>join</button>
@@ -416,7 +429,12 @@ export function Lobby() {
       <button onClick={check}>check</button>
       <div></div>
       {reactLobby?.host == reactPlayerId?.inGameId ? (
-        <button onClick={start}>start</button>
+        <div>
+          <button onClick={start}>start</button>
+          <button onClick={togglePause}>
+            {reactLobby?.isPaused ? "resume" : "pause"}
+          </button>
+        </div>
       ) : (
         <div> you are not host </div>
       )}
