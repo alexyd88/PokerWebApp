@@ -292,6 +292,7 @@ export interface LobbyServer extends Lobby {
   socketList: string[];
   messageList: Message[];
   timeout: number;
+  queuedMessage: Message | null;
 }
 
 export function createLobbyServer(): LobbyServer {
@@ -309,6 +310,7 @@ export function createLobbyServer(): LobbyServer {
     timeout: -1,
     isPaused: false,
     state: "nothing",
+    queuedMessage: null,
   };
 }
 
@@ -508,7 +510,6 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
           curPlayer.chipsThisRound != lg.maxChipsThisRound &&
           curPlayer.stack != 0
         ) {
-          lg.numPlayedThisRound--;
           return "Cannot check";
         }
       }
@@ -565,7 +566,6 @@ export function runAction(
         );
         raise(curPlayer, lg, message.content - curPlayer.chipsThisRound);
       } else {
-        lg.numPlayedThisRound--;
         console.log("PLEASE HOW ARE U HERE");
         return null;
       }
@@ -589,7 +589,7 @@ export function runAction(
           curPlayer.chipsThisRound != lg.maxChipsThisRound &&
           curPlayer.stack != 0
         ) {
-          lg.numPlayedThisRound--;
+          console.log("PLEASE HOW ARE U HERE");
           return null;
         }
       }
@@ -618,5 +618,6 @@ export function runAction(
   lobby.state = "waitingForAction";
   if (doneRound) actionResult = endRound(lobby, isClient);
   //implement autocheck if only one person has chips
+  console.log("game info", lg.numPlayedThisRound, lg.numInPot, doneRound);
   return actionResult;
 }
