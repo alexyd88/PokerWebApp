@@ -240,7 +240,7 @@ export function Lobby() {
       }
       case "action": {
         if (runAction(lobby, message, true)?.isWaitingForAction) {
-          setLastActionTime(message.date);
+          updateIsWaiting(message.date);
         }
         break;
       }
@@ -249,7 +249,7 @@ export function Lobby() {
           deal(lobby, message.cards[i]);
         }
         updatePlayerBestHand(lobby);
-        setLastActionTime(message.date);
+        updateIsWaiting(message.date);
         lobby.gameInfo.isWaitingForAction = true;
         break;
       }
@@ -279,11 +279,16 @@ export function Lobby() {
       }
       case "reset": {
         resetHand(lobby, true);
-        lobby.gameInfo.isWaitingForAction = true;
-        setLastActionTime(message.date);
+        updateIsWaiting(message.date);
         break;
       }
     }
+  }
+
+  function updateIsWaiting(time: number) {
+    lobby.gameInfo.isWaitingForAction = true;
+    setLastActionTime(time);
+    setTimer(TURN_TIME - (Date.now() - time));
   }
 
   function replay(socket: Socket | null, wantAddPlayer: boolean) {
