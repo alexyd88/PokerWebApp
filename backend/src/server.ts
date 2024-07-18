@@ -18,14 +18,17 @@ import type {
 } from "game_logic";
 import {
   createChat,
+  createMessageAction,
   createPlayerGameInfo,
   createPlayerId,
   getErrorFromAction,
   messageToString,
+  NEW_CARD_TIME,
   prepareMessageForClient,
   resetHand,
   runAction,
   setPlayerNameServer,
+  SHOWDOWN_TIME,
   sit,
 } from "game_logic";
 import { lobbies } from "./controllers/lobbies";
@@ -64,6 +67,7 @@ function addAndReturn(
   except: string | null,
   wantAdd: boolean
 ) {
+  message.date = Date.now();
   if (location == null) location = message.lobbyId;
   if (wantAdd) addMessage(message);
   else message.id = lobbies.get(message.lobbyId).messages.length;
@@ -85,7 +89,7 @@ function addAndReturn(
 
 function sendReset(lobby: LobbyServer, message: Message) {
   let cardMessage: Message = {
-    date: new Date(),
+    date: Date.now(),
     playerId: null,
     type: "reset",
     lobbyId: message.lobbyId,
@@ -93,7 +97,7 @@ function sendReset(lobby: LobbyServer, message: Message) {
   };
   addAndReturn(cardMessage, null, null, true);
   cardMessage = {
-    date: new Date(),
+    date: Date.now(),
     playerId: JSON.parse(JSON.stringify(message.playerId)),
     type: "showCards",
     cardsShown: [
@@ -134,7 +138,7 @@ function sendReset(lobby: LobbyServer, message: Message) {
 
 function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
   let cardMessage: Message = {
-    date: new Date(),
+    date: Date.now(),
     type: "showCards",
     cardsShown: cardsShown,
     lobbyId: lobby.id,
@@ -144,8 +148,34 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
   addAndReturn(cardMessage, lobby.id, null, true);
 }
 
+function autoAction(lobby: Lobby, player: Player) {
+  if (lobby.seats[lobby.gameInfo.curPlayer] != player.playerId.inGameId) {
+    console.log("somehow this mf beat the clock barely??");
+    return;
+  }
+  let message: Message = createMessageAction(
+    player.playerId,
+    "check",
+    0,
+    lobby.id
+  );
+  if (message.type != "action") {
+    console.log("WTF");
+    return;
+  }
+  let error: string = getErrorFromAction(lobby, message);
+  if (error != "success") message.action = "fold";
+  error = getErrorFromAction(lobby, message);
+  if (error != "success") {
+    console.log("how can this guy not do anything??", error);
+    return;
+  }
+  handleMessage(message);
+}
+
 function handleMessage(message: Message) {
   addAndReturn(message, null, null, true);
+
   switch (message.type) {
     case "chat": {
       //nothing special
@@ -184,18 +214,16 @@ function handleMessage(message: Message) {
         console.log("WHAT THE FUCK");
         return;
       }
-      let cardDelay: number = 0;
       if (actionResult.cards.length != 0) {
         const cardMessage: Message = {
-          date: new Date(),
+          date: Date.now(),
           type: "newCommunityCards",
           playerId: null,
           lobbyId: message.lobbyId,
           id: -1,
           cards: actionResult.cards,
         };
-        cardDelay = 1000;
-        setTimeout(addAndReturn, 1000, cardMessage, null, null, true);
+        setTimeout(addAndReturn, NEW_CARD_TIME, cardMessage, null, null, true);
       }
       if (message.action == "start") {
         sendReset(lobby, message);
@@ -204,7 +232,7 @@ function handleMessage(message: Message) {
         let lobby = lobbies.get(message.lobbyId);
         sendCardsShown(lobby, actionResult.cardsShown);
         const showdownMessage: Message = {
-          date: new Date(),
+          date: Date.now(),
           type: "showdown",
           playerId: null,
           lobbyId: message.lobbyId,
@@ -212,7 +240,7 @@ function handleMessage(message: Message) {
         };
         addAndReturn(showdownMessage, null, null, true);
         resetHand(lobby, false);
-        setTimeout(sendReset, 3000, lobby, message);
+        setTimeout(sendReset, SHOWDOWN_TIME, lobby, message);
       }
       break;
     }

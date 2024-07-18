@@ -27,6 +27,7 @@ import {
   resetHand,
   showdown,
   cardsToString,
+  TURN_TIME,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -35,6 +36,8 @@ export function Lobby() {
   const [reactLobby, setReactLobby] = useState<Lobby | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [reactPlayerId, setPlayerId] = useState<PlayerId | null>(null);
+  const [lastActionTime, setLastActionTime] = useState<number | null>(null);
+  const [timer, setTimer] = useState<number | null>(null);
   let lobby: Lobby = createLobbyClient("LMAO DUMBASS");
   let playerId: PlayerId | null = null;
   if (lobbyId != null) lobby = createLobbyClient(lobbyId);
@@ -94,7 +97,7 @@ export function Lobby() {
         if (name.value.length > 0 && playerId != null) {
           playerId.name = name.value;
           const message: Message = {
-            date: new Date(),
+            date: Date.now(),
             type: "setPlayerName",
             lobbyId: lobbyId,
             id: -1,
@@ -124,7 +127,7 @@ export function Lobby() {
           validateSeat(lobby, playerId, seatNum)
         ) {
           const message: Message = {
-            date: new Date(),
+            date: Date.now(),
             lobbyId: lobbyId,
             type: "sit",
             location: seatNum,
@@ -202,6 +205,7 @@ export function Lobby() {
     if (reactPlayerId != null)
       playerId = JSON.parse(JSON.stringify(reactPlayerId));
     if (lobby == null) return;
+    console.log("setlat", message.date);
     switch (message.type) {
       case "chat": {
         //nothing special really
@@ -235,7 +239,9 @@ export function Lobby() {
         break;
       }
       case "action": {
-        runAction(lobby, message, true);
+        if (runAction(lobby, message, true)?.isWaitingForAction) {
+          setLastActionTime(message.date);
+        }
         break;
       }
       case "newCommunityCards": {
@@ -243,6 +249,8 @@ export function Lobby() {
           deal(lobby, message.cards[i]);
         }
         updatePlayerBestHand(lobby);
+        setLastActionTime(message.date);
+        lobby.gameInfo.isWaitingForAction = true;
         break;
       }
       case "showCards": {
@@ -271,6 +279,8 @@ export function Lobby() {
       }
       case "reset": {
         resetHand(lobby, true);
+        lobby.gameInfo.isWaitingForAction = true;
+        setLastActionTime(message.date);
         break;
       }
     }
@@ -292,7 +302,7 @@ export function Lobby() {
           handleMessage(response.messages[i]);
         if (wantAddPlayer) {
           const message: Message = {
-            date: new Date(),
+            date: Date.now(),
             lobbyId: lobbyId,
             type: "addPlayer",
             id: -1,
@@ -329,6 +339,18 @@ export function Lobby() {
     setReactLobby(lobby);
   }, []);
 
+  useEffect(() => {
+    function updateTimer() {
+      console.log("set time?");
+      if (lastActionTime != null) {
+        setTimer(TURN_TIME - (Date.now() - lastActionTime));
+        console.log("set time", Date.now() - lastActionTime);
+      }
+    }
+    const interval = setInterval(updateTimer, 500);
+    return () => clearInterval(interval);
+  }, [lastActionTime, timer]);
+
   return (
     <div>
       {reactPlayerId != null
@@ -352,6 +374,11 @@ export function Lobby() {
           </li>
         );
       })}
+      <div>isWaitingForAction:{reactLobby?.gameInfo.isWaitingForAction}</div>
+      <div>
+        time{" "}
+        {reactLobby?.gameInfo.isWaitingForAction && timer != null ? timer : ""}
+      </div>
       <input type="text" id="name" />
       <button onClick={playerNameSubmit}>join</button>
       <button onClick={sayHiSubmit}> Say Hi </button>

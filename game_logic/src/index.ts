@@ -3,6 +3,7 @@ import {
   call,
   endRound,
   findNext,
+  getRandInt,
   isValidRaise,
   raise,
   resetHand,
@@ -14,11 +15,12 @@ import { Socket } from "socket.io";
 
 export * from "./logic";
 export * from "./handEval";
+export * from "./constants";
 
 type MessageCommon = {
   id: number;
   lobbyId: string;
-  date: Date;
+  date: number;
 };
 
 type MessageChat = {
@@ -63,7 +65,7 @@ export function createMessageAction(
   lobbyId: string
 ): Message {
   return {
-    date: new Date(),
+    date: Date.now(),
     playerId: playerId,
     lobbyId: lobbyId,
     id: -1,
@@ -205,7 +207,7 @@ export function createChat(
   text: string
 ): Message {
   return {
-    date: new Date(),
+    date: Date.now(),
     type: "chat",
     id: -1,
     text: text,
@@ -221,7 +223,7 @@ export function createAction(
   content: number
 ): Message {
   return {
-    date: new Date(),
+    date: Date.now(),
     type: "action",
     id: -1,
     action: action,
@@ -244,11 +246,12 @@ export interface LobbyGameInfo {
   maxChipsThisRound: number;
   totalPot: number;
   lastAggressivePerson: number; //seat of last aggressive person
+  isWaitingForAction: boolean;
   deck: Card[];
   board: Card[];
 }
 
-export function createLobbyGameInfo() {
+export function createLobbyGameInfo(): LobbyGameInfo {
   return {
     maxChipsInPot: 0,
     bigBlind: 2,
@@ -262,6 +265,7 @@ export function createLobbyGameInfo() {
     maxChipsThisRound: 2,
     totalPot: 3,
     lastAggressivePerson: -1,
+    isWaitingForAction: false,
     deck: [],
     board: [],
   };
@@ -269,7 +273,6 @@ export function createLobbyGameInfo() {
 
 export interface Lobby {
   id: string;
-  date: Date;
   players: Player[];
   seats: number[];
   host: number; //player ingameid
@@ -287,7 +290,6 @@ export function createLobbyServer(): LobbyServer {
   for (let i = 0; i < 10; i++) seats.push(-1);
   return {
     id: uuidv4(),
-    date: new Date(),
     players: [],
     seats: seats,
     host: 0,
@@ -303,7 +305,6 @@ export function createLobbyClient(id: string): Lobby {
   for (let i = 0; i < 10; i++) seats.push(-1);
   return {
     id: id,
-    date: new Date(),
     players: [],
     host: 0,
     seats: seats,
@@ -504,6 +505,7 @@ export interface ActionResult {
   cards: Card[]; // community cards
   calledHandEnd: boolean;
   cardsShown: ShowCards[];
+  isWaitingForAction: boolean;
 }
 
 export function runAction(
@@ -531,8 +533,10 @@ export function runAction(
 
   switch (message.action) {
     case "start": {
+      //this makes it optimal to sit after large gap :skull: but its whatever for now
       if (!isClient) resetHand(lobby, isClient);
       return {
+        isWaitingForAction: false,
         cards: [],
         calledHandEnd: false,
         cardsShown: [],
@@ -591,11 +595,13 @@ export function runAction(
     }
   }
   let actionResult: ActionResult = {
+    isWaitingForAction: true,
     cards: [],
     calledHandEnd: false,
     cardsShown: [],
   };
   lg.curPlayer = findNext(lobby, lg.curPlayer);
+  lg.isWaitingForAction = true;
   if (doneRound) actionResult = endRound(lobby, isClient);
   //implement autocheck if only one person has chips
   return actionResult;
