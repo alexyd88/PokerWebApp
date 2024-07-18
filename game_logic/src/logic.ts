@@ -91,11 +91,6 @@ export function findNext(lobby: Lobby, position: number) {
   for (let i = 0; i < position; i++)
     if (lobby.seats[i] != -1 && lobby.players[lobby.seats[i]].gameInfo.inPot)
       return i;
-  console.log(
-    position,
-    lobby,
-    "u seriously fucked up theres only one person in this lobby"
-  );
   return position;
 }
 
@@ -120,21 +115,28 @@ function checkIfShouldShow(
   cardsShown: ShowCards[],
   seat: number
 ) {
-  if (player.inPot) {
-    if (
-      bestHand.length == 0 ||
-      compareHands(player.curBestHand, bestHand) != -1
-    ) {
+  if (player.inPot && player.fullHand.length == 7) {
+    console.log(
+      "myhand:",
+      cardsToString(player.curBestHand),
+      "besthand:",
+      cardsToString(bestHand)
+    );
+    if (compareHands(player.curBestHand, bestHand) != -1) {
+      console.log(
+        "adding bc",
+        bestHand.length == 0,
+        compareHands(player.curBestHand, bestHand)
+      );
       cardsShown.push({
         inGameId: lobby.players[lobby.seats[seat]].playerId.inGameId,
         card1: player.card1,
         card2: player.card2,
       });
+      return player.curBestHand;
     }
-    if (bestHand.length == 0) bestHand = player.curBestHand;
-    if (compareHands(player.curBestHand, bestHand) == 1)
-      bestHand = player.curBestHand;
   }
+  return bestHand;
 }
 
 function findShowCards(lobby: Lobby): ActionResult {
@@ -155,11 +157,11 @@ function findShowCards(lobby: Lobby): ActionResult {
   const start = lg.lastAggressivePerson;
   let seat = start;
   let player = lobby.players[lobby.seats[seat]].gameInfo;
-  checkIfShouldShow(lobby, player, bestHand, cardsShown, seat);
+  bestHand = checkIfShouldShow(lobby, player, bestHand, cardsShown, seat);
   seat = findNext(lobby, seat);
   while (seat != start) {
     player = lobby.players[lobby.seats[seat]].gameInfo;
-    checkIfShouldShow(lobby, player, bestHand, cardsShown, seat);
+    bestHand = checkIfShouldShow(lobby, player, bestHand, cardsShown, seat);
     seat = findNext(lobby, seat);
   }
   return {
@@ -196,22 +198,31 @@ export function showdown(lobby: Lobby): ActionResult {
       if (player.inPot) {
         if (lowestAmt == -1) lowestAmt = player.chipsInPot;
         lowestAmt = Math.min(lowestAmt, player.chipsInPot);
-        if (bestHand.length == 0) bestHand = player.curBestHand;
+        console.log(
+          "HEY BRO",
+          cardsToString(player.curBestHand),
+          cardsToString(bestHand)
+        );
         if (compareHands(player.curBestHand, bestHand) == 1)
           bestHand = player.curBestHand;
       }
     }
-
+    console.log("HI");
     const winners: number[] = [];
     let totalPayout = 0;
     for (let j = 0; j < lobby.players.length; j++) {
       let player = lobby.players[j].gameInfo;
+      console.log("YO IM HERE PLEASE");
       if (player.inPot) {
         const amt = Math.min(lowestAmt, player.chipsInPot);
         player.chipsInPot -= amt;
         totalPayout += amt;
-        if (player.inPot && compareHands(bestHand, player.curBestHand) == 0)
-          winners.push(j);
+        console.log(
+          bestHand,
+          player.curBestHand,
+          compareHands(bestHand, player.curBestHand) == 0
+        );
+        if (compareHands(bestHand, player.curBestHand) == 0) winners.push(j);
         if (player.chipsInPot == 0 && player.inPot) {
           lg.numInPot--;
           player.inPot = false;
@@ -246,6 +257,9 @@ export function showdown(lobby: Lobby): ActionResult {
     }
   }
 
+  if (lg.totalPot != 0) {
+    console.log("YOOO THERES STILL SHIT IN HERE");
+  }
   return actionResult;
 }
 
@@ -266,6 +280,7 @@ export function endRound(lobby: Lobby, isClient: boolean): ActionResult {
     } else if (lg.curRound < 4) {
       cards.push(deal(lobby, null));
       updatePlayerBestHand(lobby);
+      lg.lastAggressivePerson = -1;
     } else {
       return showdown(lobby);
     }

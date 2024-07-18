@@ -391,6 +391,9 @@ export function Lobby() {
       {reactLobby?.messages.map((message, index) => {
         return <div key={index}>{messageToString(message)}</div>;
       })}
+      {reactLobby?.gameInfo.board != null
+        ? cardsToString(reactLobby?.gameInfo.board)
+        : ""}
       {reactLobby?.seats.map((user, index) => {
         return (
           <li key={index}>

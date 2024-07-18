@@ -138,6 +138,8 @@ function sortBy(a: Card, b: Card) {
 export function compareHands(hand1: Card[], hand2: Card[]) {
   const a = [...hand1];
   const b = [...hand2];
+  if (a.length != 5) return -1;
+  if (b.length != 5) return 1;
   a.sort(sortBy);
   b.sort(sortBy);
   if (isStraightFlush(a) != isStraightFlush(b))
