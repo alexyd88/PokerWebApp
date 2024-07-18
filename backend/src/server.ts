@@ -210,6 +210,7 @@ function handleMessage(message: Message) {
         return;
       }
       const actionResult: ActionResult = runAction(lobby, message, false);
+
       if (actionResult == null) {
         console.log("WHAT THE FUCK");
         return;
@@ -289,6 +290,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("message", (message: Message) => {
+    message.date = Date.now();
     handleMessage(message);
   });
 });
