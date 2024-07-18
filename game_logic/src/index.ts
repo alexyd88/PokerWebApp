@@ -423,8 +423,8 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     chipsThisRound: 0,
     inPot: false,
     hasHoleCards: false,
-    card1: { num: 999, suit: "oops", numDisplay: "oops2" },
-    card2: { num: 999, suit: "oops", numDisplay: "oops2" },
+    card1: { num: 999, suit: "?", numDisplay: "?" },
+    card2: { num: 999, suit: "?", numDisplay: "?" },
     fullHand: [],
     curBestHand: [],
     curHandStrength: -1,
@@ -484,6 +484,7 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
   let curPlayer: PlayerGameInfo = createPlayerGameInfo();
   if (message.action != "start")
     curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
+  if (lobby.isPaused) return "Lobby is paused";
   switch (message.action) {
     case "start": {
       let numPlayers = 0;
