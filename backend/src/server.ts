@@ -28,6 +28,7 @@ import {
   getRandSeat,
   messageToString,
   NEW_CARD_TIME,
+  noActionsLeft,
   prepareMessageForClient,
   resetHand,
   runAction,
@@ -162,7 +163,7 @@ function sendEndGame(lobby: Lobby) {
   addAndReturn(endMessage, null, null, true);
 }
 
-function sendEndHand(lobby: LobbyServer, message: Message) {
+function sendEndHand(lobby: LobbyServer) {
   if (lobby.isEnding || getNumInPot(lobby) < 2) {
     sendEndGame(lobby);
     return;
@@ -184,6 +185,10 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
 
 //expects curplayer to be real player
 function expectAction(lobby: LobbyServer) {
+  if (noActionsLeft(lobby)) {
+    handleNoActionsLeft(lobby);
+    return;
+  }
   if (currentPlayerAway(lobby)) {
     handleCurrentPlayerAway(lobby);
     return;
@@ -254,8 +259,7 @@ function requeueMessage(lobby: LobbyServer) {
     lobby.timeout = setTimeout(
       sendEndHand,
       SHOWDOWN_TIME,
-      lobby,
-      lobby.queuedMessage
+      lobby
     ) as unknown as number;
   } else {
     console.log("how are u here?", lobby.queuedMessage);
@@ -274,6 +278,14 @@ function handleCurrentPlayerAway(lobby: Lobby) {
     handleMessage(
       getAutoAction(lobby, lobby.players[lobby.seats[lobby.gameInfo.curPlayer]])
     );
+}
+
+function handleNoActionsLeft(lobby: Lobby) {
+  if (noActionsLeft(lobby)) {
+    handleMessage(
+      getAutoAction(lobby, lobby.players[lobby.seats[lobby.gameInfo.curPlayer]])
+    );
+  }
 }
 
 function handleMessage(message: Message) {
@@ -353,7 +365,7 @@ function handleMessage(message: Message) {
       }
       if (message.action == "start") {
         lobby.gameInfo.dealerChip = getRandSeat(lobby);
-        sendEndHand(lobby, message);
+        sendEndHand(lobby);
       }
 
       // new cards
@@ -392,8 +404,7 @@ function handleMessage(message: Message) {
         lobby.timeout = setTimeout(
           sendEndHand,
           SHOWDOWN_TIME,
-          lobby,
-          message
+          lobby
         ) as unknown as number;
         lobby.queuedMessage = createResetMessage(lobby);
       }

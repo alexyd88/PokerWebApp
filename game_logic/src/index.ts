@@ -506,6 +506,18 @@ export function getNumInPot(lobby: Lobby): number {
   return np;
 }
 
+export function noActionsLeft(lobby: Lobby): boolean {
+  let np: number = 0;
+  for (let i = 0; i < lobby.players.length; i++) {
+    let player: PlayerGameInfo = lobby.players[i].gameInfo;
+    if (player.inPot && player.stack != 0) {
+      if (player.chipsInPot != lobby.gameInfo.maxChipsInPot) return false;
+      np++;
+    }
+  }
+  return np < 2;
+}
+
 export function getErrorFromAction(lobby: Lobby, message: Message): string {
   if (message.type != "action") {
     console.log("PLEASE HOW ARE U HERE");
