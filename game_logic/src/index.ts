@@ -59,6 +59,11 @@ type MessageReset = {
   dealerChip: number;
 };
 
+type MessageSetHost = {
+  type: "setHost";
+  inGameId: number;
+};
+
 export function createMessageAction(
   playerId: PlayerId,
   action: string,
@@ -124,6 +129,7 @@ export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageShowMyCards
   | MessageEndGameToggle
   | MessageAwayToggle
+  | MessageSetHost
 );
 
 export type MessageWithoutPlayerId = { playerId: null } & (

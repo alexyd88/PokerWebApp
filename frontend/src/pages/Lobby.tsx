@@ -86,6 +86,9 @@ export function Lobby() {
   function awayToggle() {
     handleButton("awayToggle");
   }
+  function setHost() {
+    handleButton("setHost");
+  }
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
     playerId = JSON.parse(JSON.stringify(reactPlayerId));
@@ -182,6 +185,21 @@ export function Lobby() {
           type: "awayToggle",
           playerId: playerId,
           inGameId: playerId.inGameId,
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
+        break;
+      }
+      case "setHost": {
+        const gameId: HTMLInputElement = document.getElementById(
+          "player_id"
+        ) as HTMLInputElement;
+        const message: Message = {
+          id: -1,
+          type: "setHost",
+          playerId: playerId,
+          inGameId: Number(gameId.value),
           lobbyId: lobbyId,
           date: Date.now(),
         };
@@ -370,6 +388,10 @@ export function Lobby() {
         lobby.isEnding = !lobby.isEnding;
         break;
       }
+      case "setHost": {
+        lobby.host = message.inGameId;
+        break;
+      }
     }
   }
 
@@ -477,62 +499,65 @@ export function Lobby() {
           ? timer
           : ""}
       </div>
-      <input type="text" id="name" />
-      <button onClick={playerNameSubmit}>join</button>
-      <button onClick={sayHiSubmit}> Say Hi </button>
-      <input type="text" id="seat" />
-      <button onClick={sitSubmit}>sit</button>
-      <div id="illegal"></div>
-      <input
-        type="number"
-        id="raise_size"
-        placeholder="raise size"
-        min="1"
-      ></input>
-      <div></div>
-      <button onClick={raise}>raise</button>
-      <button onClick={fold}>fold</button>
-      <button onClick={call}>call</button>
-      <button onClick={check}>check</button>
-      {reactLobby?.canShowHoleCards && reactLobby?.state == "showdown" ? (
-        <button onClick={showCards}>show cards</button>
-      ) : (
-        ""
-      )}
-      {reactPlayerId?.inGameId != undefined ? (
-        <button onClick={awayToggle}>
-          {reactLobby?.players[reactPlayerId?.inGameId].gameInfo.away
-            ? "I'm back"
-            : "away"}{" "}
-        </button>
-      ) : (
-        ""
-      )}
-
-      <div></div>
-      {reactLobby?.host == reactPlayerId?.inGameId ? (
-        <div>
-          <button onClick={start}>start</button>
-          <button onClick={pauseToggle}>
-            {reactLobby?.isPaused ? "resume" : "pause"}
-          </button>
-          {reactLobby?.gameInfo.gameStarted ? (
-            <button onClick={endGameToggle}>
-              {reactLobby?.isEnding ? "cancel end game" : "end game"}
-            </button>
-          ) : (
-            ""
-          )}
-        </div>
-      ) : (
-        <div> you are not host </div>
-      )}
       <div>
-        {reactLobby?.gameInfo != null
-          ? lobbyInfoToString(reactLobby?.gameInfo)
-          : ""}
+        <input type="text" id="name" />
+        <button onClick={playerNameSubmit}>join</button>
+        <button onClick={sayHiSubmit}> Say Hi </button>
+        <input type="text" id="seat" />
+        <button onClick={sitSubmit}>sit</button>
+        <div id="illegal"></div>
+        <input
+          type="number"
+          id="raise_size"
+          placeholder="raise size"
+          min="1"
+        ></input>
+        <div></div>
+        <button onClick={raise}>raise</button>
+        <button onClick={fold}>fold</button>
+        <button onClick={call}>call</button>
+        <button onClick={check}>check</button>
+        {reactLobby?.canShowHoleCards && reactLobby?.state == "showdown" ? (
+          <button onClick={showCards}>show cards</button>
+        ) : (
+          ""
+        )}
+        {reactPlayerId?.inGameId != undefined ? (
+          <button onClick={awayToggle}>
+            {reactLobby?.players[reactPlayerId?.inGameId].gameInfo.away
+              ? "I'm back"
+              : "away"}{" "}
+          </button>
+        ) : (
+          ""
+        )}
+        {reactLobby?.host == reactPlayerId?.inGameId ? (
+          <div>
+            <input type="number" id="player_id"></input>
+            <button onClick={setHost}>setHost</button>
+            <div></div>
+            <button onClick={start}>start</button>
+            <button onClick={pauseToggle}>
+              {reactLobby?.isPaused ? "resume" : "pause"}
+            </button>
+            {reactLobby?.gameInfo.gameStarted ? (
+              <button onClick={endGameToggle}>
+                {reactLobby?.isEnding ? "cancel end game" : "end game"}
+              </button>
+            ) : (
+              ""
+            )}
+          </div>
+        ) : (
+          <div> you are not host </div>
+        )}
+        <div>
+          {reactLobby?.gameInfo != null
+            ? lobbyInfoToString(reactLobby?.gameInfo)
+            : ""}
+        </div>
+        <ul></ul>
       </div>
-      <ul></ul>
     </div>
   );
 }

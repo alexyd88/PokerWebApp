@@ -318,6 +318,10 @@ function handleMessage(message: Message) {
       lobby.isEnding = !lobby.isEnding;
       break;
     }
+    case "setHost": {
+      lobby.host = message.inGameId;
+      break;
+    }
     case "awayToggle": {
       lobby.players[message.inGameId].gameInfo.away =
         !lobby.players[message.inGameId].gameInfo.away;
