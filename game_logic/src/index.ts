@@ -109,6 +109,11 @@ type MessageEndGame = {
   type: "end";
 };
 
+type MessageAwayToggle = {
+  type: "awayToggle";
+  inGameId: number; //host might send diff person's ingameid
+};
+
 export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageAction
   | MessageChat
@@ -118,6 +123,7 @@ export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessagePauseToggle
   | MessageShowMyCards
   | MessageEndGameToggle
+  | MessageAwayToggle
 );
 
 export type MessageWithoutPlayerId = { playerId: null } & (
@@ -399,6 +405,7 @@ export function playerGameInfoToString(player: Player, lobby: Lobby) {
     lobby.gameInfo.curPlayer == player.playerId.seat
   )
     s += " <---- this guys turn";
+  if (gameInfo.away) s += "<-- THIS GUY IS AWAY";
   return s;
   // (player.playerId.seat == lobby.gameInfo.curPlayer)
   // ? "<-- this guy's turn"
@@ -486,6 +493,17 @@ export function setPlayerNameServer(lobby: Lobby, playerId: PlayerId): void {
 
 export function setPlayerNameClient(lobby: Lobby, playerId: PlayerId): void {
   lobby.players[playerId.inGameId].playerId.name = playerId.name;
+}
+
+//only should be called when round is not active
+export function getNumInPot(lobby: Lobby): number {
+  let np: number = 0;
+  for (let i = 0; i < lobby.players.length; i++) {
+    if (lobby.players[i].gameInfo.stack == 0)
+      lobby.players[i].gameInfo.away = true;
+    if (!lobby.players[i].gameInfo.away) np++;
+  }
+  return np;
 }
 
 export function getErrorFromAction(lobby: Lobby, message: Message): string {

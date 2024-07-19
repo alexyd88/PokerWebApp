@@ -83,6 +83,9 @@ export function Lobby() {
   function endGameToggle() {
     handleButton("endGameToggle");
   }
+  function awayToggle() {
+    handleButton("awayToggle");
+  }
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
     playerId = JSON.parse(JSON.stringify(reactPlayerId));
@@ -167,6 +170,18 @@ export function Lobby() {
           id: -1,
           type: "endGameToggle",
           playerId: playerId,
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
+        break;
+      }
+      case "awayToggle": {
+        const message: Message = {
+          id: -1,
+          type: "awayToggle",
+          playerId: playerId,
+          inGameId: playerId.inGameId,
           lobbyId: lobbyId,
           date: Date.now(),
         };
@@ -346,6 +361,11 @@ export function Lobby() {
         console.log("paused: ", lobby.isPaused);
         break;
       }
+      case "awayToggle": {
+        lobby.players[message.inGameId].gameInfo.away =
+          !lobby.players[message.inGameId].gameInfo.away;
+        break;
+      }
       case "endGameToggle": {
         lobby.isEnding = !lobby.isEnding;
         break;
@@ -479,6 +499,16 @@ export function Lobby() {
       ) : (
         ""
       )}
+      {reactPlayerId?.inGameId != undefined ? (
+        <button onClick={awayToggle}>
+          {reactLobby?.players[reactPlayerId?.inGameId].gameInfo.away
+            ? "I'm back"
+            : "away"}{" "}
+        </button>
+      ) : (
+        ""
+      )}
+
       <div></div>
       {reactLobby?.host == reactPlayerId?.inGameId ? (
         <div>

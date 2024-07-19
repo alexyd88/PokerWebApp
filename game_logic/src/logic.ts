@@ -36,9 +36,6 @@ export function updateHoleCards(
   card1: Card,
   card2: Card
 ) {
-  if (playerInfo.away) {
-    console.log("HOW ARE U HERE?");
-  }
   playerInfo.hasHoleCards = true;
   playerInfo.card1 = card1;
   playerInfo.card2 = card2;
@@ -354,6 +351,7 @@ export function endHand(lobby: Lobby) {
   let lg = lobby.gameInfo;
   lobby.state = "waitingForAction";
   lg.numInPot = 0;
+  lg.board.length = 0;
   lg.totalPot = 0;
   for (let i = 0; i < lobby.players.length; i++) {
     let player = players[i].gameInfo;

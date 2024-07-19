@@ -24,6 +24,7 @@ import {
   endGame,
   endHand,
   getErrorFromAction,
+  getNumInPot,
   getRandSeat,
   messageToString,
   NEW_CARD_TIME,
@@ -162,11 +163,11 @@ function sendEndGame(lobby: Lobby) {
 }
 
 function sendEndHand(lobby: LobbyServer, message: Message) {
-  if (!lobby.isEnding) {
-    sendReset(lobby);
+  if (lobby.isEnding || getNumInPot(lobby) < 2) {
+    sendEndGame(lobby);
     return;
   }
-  sendEndGame(lobby);
+  sendReset(lobby);
 }
 
 function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
@@ -183,6 +184,10 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
 
 //expects curplayer to be real player
 function expectAction(lobby: LobbyServer) {
+  if (currentPlayerAway(lobby)) {
+    handleCurrentPlayerAway(lobby);
+    return;
+  }
   clearTimeout(lobby.timeout);
   lobby.state = "waitingForAction";
 
@@ -257,6 +262,20 @@ function requeueMessage(lobby: LobbyServer) {
   }
 }
 
+function currentPlayerAway(lobby: Lobby) {
+  if (!lobby.gameInfo.gameStarted) return false;
+  //console.log(lobby.gameInfo.curPlayer, lobby.seats[lobby.gameInfo.curPlayer]);
+  return lobby.players[lobby.seats[lobby.gameInfo.curPlayer]].gameInfo.away;
+}
+
+function handleCurrentPlayerAway(lobby: Lobby) {
+  console.log("YO,", currentPlayerAway(lobby));
+  if (currentPlayerAway(lobby))
+    handleMessage(
+      getAutoAction(lobby, lobby.players[lobby.seats[lobby.gameInfo.curPlayer]])
+    );
+}
+
 function handleMessage(message: Message) {
   addAndReturn(message, null, null, true);
   const lobby = lobbies.get(message.lobbyId);
@@ -285,6 +304,16 @@ function handleMessage(message: Message) {
     }
     case "endGameToggle": {
       lobby.isEnding = !lobby.isEnding;
+      break;
+    }
+    case "awayToggle": {
+      lobby.players[message.inGameId].gameInfo.away =
+        !lobby.players[message.inGameId].gameInfo.away;
+      if (
+        lobby.players[message.inGameId].gameInfo.away &&
+        message.inGameId == lobby.seats[lobby.gameInfo.curPlayer]
+      )
+        handleCurrentPlayerAway(lobby);
       break;
     }
     case "showMyCards": {
