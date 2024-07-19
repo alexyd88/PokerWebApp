@@ -358,6 +358,7 @@ export function endHand(lobby: Lobby) {
     player.inPot = false;
     for (let j = 0; j < SEATS_NUMBER; j++)
       if (lobby.seats[j] == i) player.inPot = true;
+    if (player.stack == 0) player.away = true;
     if (player.away) player.inPot = false;
     if (player.inPot) lobby.gameInfo.numInPot++;
     player.chipsInPot = 0;
