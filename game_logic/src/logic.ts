@@ -343,9 +343,13 @@ export function takeFromPot(
   lobby.totalPot -= +x;
 }
 
-export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
-  console.log("called reset yo");
-  lobby.gameInfo.gameStarted = true;
+export function endGame(lobby: Lobby) {
+  endHand(lobby);
+  lobby.state = "nothing";
+  lobby.gameInfo.gameStarted = false;
+}
+
+export function endHand(lobby: Lobby) {
   let players: Player[] = lobby.players;
   let lg = lobby.gameInfo;
   lobby.state = "waitingForAction";
@@ -367,6 +371,14 @@ export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
     player.card1 = { num: 0, numDisplay: "?", suit: "?" };
     player.card2 = { num: 0, numDisplay: "?", suit: "?" };
   }
+}
+
+export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
+  console.log("called reset yo");
+  lobby.gameInfo.gameStarted = true;
+  let players: Player[] = lobby.players;
+  let lg = lobby.gameInfo;
+  endHand(lobby);
   if (lg.numInPot < 2) {
     lg.gameStarted = false;
     // end game or something
@@ -395,6 +407,7 @@ export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
   lg.curRound = 0;
   lg.curRaise = lg.bigBlind;
   lg.numPlayedThisRound = 0;
+  lobby.isEnding = false;
   if (!isClient) shuffleAndDeal(lobby);
 }
 

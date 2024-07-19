@@ -101,6 +101,14 @@ type MessageShowMyCards = {
   type: "showMyCards";
 };
 
+type MessageEndGameToggle = {
+  type: "endGameToggle";
+};
+
+type MessageEndGame = {
+  type: "end";
+};
+
 export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageAction
   | MessageChat
@@ -109,6 +117,7 @@ export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageSit
   | MessagePauseToggle
   | MessageShowMyCards
+  | MessageEndGameToggle
 );
 
 export type MessageWithoutPlayerId = { playerId: null } & (
@@ -117,6 +126,7 @@ export type MessageWithoutPlayerId = { playerId: null } & (
   | MessageShowCards
   | MessageReset
   | MessageShowdown
+  | MessageEndGame
 );
 
 export type Message = MessageCommon &
@@ -263,6 +273,29 @@ export interface LobbyGameInfo {
   board: Card[];
 }
 
+export interface Lobby {
+  id: string;
+  players: Player[];
+  seats: number[];
+  host: number; //player ingameid
+  gameInfo: LobbyGameInfo;
+  messages: Message[];
+  isPaused: boolean;
+  isEnding: boolean;
+  state: stateTypes;
+}
+
+export interface LobbyServer extends Lobby {
+  socketList: string[];
+  messageList: Message[];
+  timeout: number;
+  queuedMessage: Message | null;
+}
+
+export interface LobbyClient extends Lobby {
+  canShowHoleCards: boolean;
+}
+
 export function createLobbyGameInfo(): LobbyGameInfo {
   return {
     maxChipsInPot: 0,
@@ -282,28 +315,6 @@ export function createLobbyGameInfo(): LobbyGameInfo {
   };
 }
 
-export interface Lobby {
-  id: string;
-  players: Player[];
-  seats: number[];
-  host: number; //player ingameid
-  gameInfo: LobbyGameInfo;
-  messages: Message[];
-  isPaused: boolean;
-  state: stateTypes;
-}
-
-export interface LobbyServer extends Lobby {
-  socketList: string[];
-  messageList: Message[];
-  timeout: number;
-  queuedMessage: Message | null;
-}
-
-export interface LobbyClient extends Lobby {
-  canShowHoleCards: boolean;
-}
-
 export function createLobbyServer(): LobbyServer {
   const seats: number[] = [];
   for (let i = 0; i < 10; i++) seats.push(-1);
@@ -320,6 +331,7 @@ export function createLobbyServer(): LobbyServer {
     isPaused: false,
     state: "nothing",
     queuedMessage: null,
+    isEnding: false,
   };
 }
 
@@ -336,6 +348,7 @@ export function createLobbyClient(id: string): LobbyClient {
     isPaused: false,
     state: "nothing",
     canShowHoleCards: true,
+    isEnding: false,
   };
 }
 
@@ -561,6 +574,7 @@ export function runAction(
 
   switch (message.action) {
     case "start": {
+      lobby.isEnding = false;
       return {
         isWaitingForAction: false,
         cards: [],

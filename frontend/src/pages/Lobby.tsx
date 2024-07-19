@@ -29,6 +29,7 @@ import {
   showdown,
   cardsToString,
   TURN_TIME,
+  endGame,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -73,11 +74,14 @@ export function Lobby() {
   function check() {
     handleButton("check");
   }
-  function togglePause() {
+  function pauseToggle() {
     handleButton("pauseToggle");
   }
   function showCards() {
     handleButton("showMyCards");
+  }
+  function endGameToggle() {
+    handleButton("endGameToggle");
   }
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
@@ -156,6 +160,17 @@ export function Lobby() {
         };
         socket?.emit("message", message);
         console.log("clicked pause");
+        break;
+      }
+      case "endGameToggle": {
+        const message: Message = {
+          id: -1,
+          type: "endGameToggle",
+          playerId: playerId,
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
         break;
       }
       case "showMyCards": {
@@ -317,6 +332,10 @@ export function Lobby() {
         updateIsWaiting(message.date);
         break;
       }
+      case "end": {
+        endGame(lobby);
+        break;
+      }
       case "pauseToggle": {
         if (lobby.isPaused) {
           lobby.isPaused = false;
@@ -325,6 +344,11 @@ export function Lobby() {
           lobby.isPaused = true;
         }
         console.log("paused: ", lobby.isPaused);
+        break;
+      }
+      case "endGameToggle": {
+        lobby.isEnding = !lobby.isEnding;
+        break;
       }
     }
   }
@@ -459,9 +483,16 @@ export function Lobby() {
       {reactLobby?.host == reactPlayerId?.inGameId ? (
         <div>
           <button onClick={start}>start</button>
-          <button onClick={togglePause}>
+          <button onClick={pauseToggle}>
             {reactLobby?.isPaused ? "resume" : "pause"}
           </button>
+          {reactLobby?.gameInfo.gameStarted ? (
+            <button onClick={endGameToggle}>
+              {reactLobby?.isEnding ? "cancel end game" : "end game"}
+            </button>
+          ) : (
+            ""
+          )}
         </div>
       ) : (
         <div> you are not host </div>

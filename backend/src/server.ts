@@ -21,6 +21,8 @@ import {
   createMessageAction,
   createPlayerGameInfo,
   createPlayerId,
+  endGame,
+  endHand,
   getErrorFromAction,
   getRandSeat,
   messageToString,
@@ -102,13 +104,13 @@ function createResetMessage(lobby: LobbyServer): Message {
   return cardMessage;
 }
 
-function sendReset(lobby: LobbyServer, message: Message) {
+function sendReset(lobby: LobbyServer) {
   resetHand(lobby, false, -1);
   let cardMessage: Message = createResetMessage(lobby);
   addAndReturn(cardMessage, null, null, true);
   cardMessage = {
     date: Date.now(),
-    playerId: JSON.parse(JSON.stringify(message.playerId)),
+    playerId: null,
     type: "showCards",
     cardsShown: [
       {
@@ -117,7 +119,7 @@ function sendReset(lobby: LobbyServer, message: Message) {
         card2: lobby.players[0].gameInfo.card2,
       },
     ],
-    lobbyId: message.lobbyId,
+    lobbyId: lobby.id,
     id: -1,
   };
   for (let i = 0; i < lobby.players.length; i++) {
@@ -145,6 +147,26 @@ function sendReset(lobby: LobbyServer, message: Message) {
     }
   }
   expectAction(lobby);
+}
+
+function sendEndGame(lobby: Lobby) {
+  endGame(lobby);
+  let endMessage: Message = {
+    type: "end",
+    date: Date.now(),
+    playerId: null,
+    lobbyId: lobby.id,
+    id: -1,
+  };
+  addAndReturn(endMessage, null, null, true);
+}
+
+function sendEndHand(lobby: LobbyServer, message: Message) {
+  if (!lobby.isEnding) {
+    sendReset(lobby);
+    return;
+  }
+  sendEndGame(lobby);
 }
 
 function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
@@ -225,7 +247,7 @@ function requeueMessage(lobby: LobbyServer) {
     ) as unknown as number;
   } else if (lobby.queuedMessage.type == "reset") {
     lobby.timeout = setTimeout(
-      sendReset,
+      sendEndHand,
       SHOWDOWN_TIME,
       lobby,
       lobby.queuedMessage
@@ -259,13 +281,10 @@ function handleMessage(message: Message) {
         lobby.isPaused = true;
         clearTimeout(lobby.timeout);
       }
-      const message: Message = {
-        type: "pauseToggle",
-        id: -1,
-        lobbyId: lobby.id,
-        date: Date.now(),
-        playerId: null,
-      };
+      break;
+    }
+    case "endGameToggle": {
+      lobby.isEnding = !lobby.isEnding;
       break;
     }
     case "showMyCards": {
@@ -305,7 +324,7 @@ function handleMessage(message: Message) {
       }
       if (message.action == "start") {
         lobby.gameInfo.dealerChip = getRandSeat(lobby);
-        sendReset(lobby, message);
+        sendEndHand(lobby, message);
       }
 
       // new cards
@@ -342,7 +361,7 @@ function handleMessage(message: Message) {
         addAndReturn(showdownMessage, null, null, true);
         clearTimeout(lobby.timeout);
         lobby.timeout = setTimeout(
-          sendReset,
+          sendEndHand,
           SHOWDOWN_TIME,
           lobby,
           message
