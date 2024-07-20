@@ -211,21 +211,19 @@ export function sit(lobby: Lobby, playerId: PlayerId, seat: number): void {
     return;
   }
   lobby.seats[seat] = playerId.inGameId;
-  lobby.players[playerId.inGameId].playerId.seat = seat;
+  lobby.players[playerId.inGameId].gameInfo.seat = seat;
   let pg = lobby.players[playerId.inGameId].gameInfo;
   pg.kicked = false;
   pg.leaving = false;
   pg.startedInPot = false;
   pg.inPot = false;
   pg.away = false;
-  playerId.seat = seat;
 }
 
-export function leaveSeat(lobby: Lobby, playerId: PlayerId, inGameId: number) {
-  let seat = lobby.players[inGameId].playerId.seat;
+export function leaveSeat(lobby: Lobby, inGameId: number) {
+  let seat = lobby.players[inGameId].gameInfo.seat;
   console.log("I LEFT", seat);
-  lobby.players[inGameId].playerId.seat = -1;
-  playerId.seat = -1;
+  lobby.players[inGameId].gameInfo.seat = -1;
   lobby.seats[seat] = -1;
 }
 
@@ -247,7 +245,7 @@ export function validateSeat(
     seat <= 9 &&
     Number.isInteger(seat) &&
     lobby.seats[seat] == -1 &&
-    lobby.players[playerId.inGameId].playerId.seat == -1
+    lobby.players[playerId.inGameId].gameInfo.seat == -1
   );
   // return true;
 }
@@ -403,6 +401,7 @@ export interface PlayerGameInfo {
   away: boolean;
   leaving: boolean;
   kicked: boolean;
+  seat: number;
 }
 
 export function playerGameInfoToString(player: Player, lobby: Lobby) {
@@ -429,7 +428,7 @@ export function playerGameInfoToString(player: Player, lobby: Lobby) {
       strengthToString(gameInfo.curHandStrength);
   if (
     lobby.state == "waitingForAction" &&
-    lobby.gameInfo.curPlayer == player.playerId.seat
+    lobby.gameInfo.curPlayer == player.gameInfo.seat
   )
     s += " <---- this guys turn";
   if (gameInfo.away) s += "<-- THIS GUY IS AWAY";
@@ -479,6 +478,7 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     startedInPot: false,
     kicked: false,
     leaving: false,
+    seat: -1,
   };
 }
 
@@ -486,7 +486,6 @@ export interface PlayerId {
   id: string; //uuid, will be given to backend to verify if this person is allowed to play right now, other players shouldn't ever know
   inGameId: number; //should be the number of players before this player joined, remembered by frontend so it knows what person it is playing and to fill in data easily
   name: string;
-  seat: number;
 }
 
 export function createPlayerId(
@@ -498,7 +497,6 @@ export function createPlayerId(
     id: id == null ? uuidv4() : id,
     inGameId: lobby.players.length,
     name: name,
-    seat: -1,
   };
 }
 

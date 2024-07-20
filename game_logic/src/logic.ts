@@ -384,7 +384,7 @@ export function endHand(lobby: Lobby) {
     if (seat == -1) player.inPot = false;
     if (player.stack == 0) player.leaving = true;
     if (isLeaving(player) && seat != -1) {
-      leaveSeat(lobby, players[i].playerId, i);
+      leaveSeat(lobby, i);
     }
     player.inPot = !isLeaving(player);
     player.startedInPot = player.inPot;

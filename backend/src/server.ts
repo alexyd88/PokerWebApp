@@ -333,11 +333,7 @@ function handleMessage(message: Message) {
         lobby.players[message.inGameId].gameInfo.leaving &&
         !lobby.gameInfo.gameStarted
       )
-        leaveSeat(
-          lobby,
-          lobby.players[message.inGameId].playerId,
-          message.inGameId
-        );
+        leaveSeat(lobby, message.inGameId);
       break;
     }
     case "showMyCards": {

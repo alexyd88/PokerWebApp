@@ -285,7 +285,6 @@ export function Lobby() {
         playerId = {
           id: id,
           inGameId: message.playerId.inGameId,
-          seat: -1,
           name: "GUEST",
         };
         console.log("gonna set pid to ", playerId);
@@ -313,11 +312,6 @@ export function Lobby() {
           lobby.players[message.playerId.inGameId].playerId,
           message.location
         );
-        if (playerId?.inGameId == message.playerId.inGameId) {
-          playerId.seat = message.location;
-          console.log("gonna set pid to ", playerId);
-          setPlayerId(playerId);
-        }
         break;
       }
       case "addPlayer": {
@@ -402,17 +396,13 @@ export function Lobby() {
         break;
       }
       case "leavingToggle": {
-        if (playerId == null) {
-          console.log("WTF");
-          return;
-        }
         lobby.players[message.inGameId].gameInfo.leaving =
           !lobby.players[message.inGameId].gameInfo.leaving;
         if (
           lobby.players[message.inGameId].gameInfo.leaving &&
           !lobby.gameInfo.gameStarted
         ) {
-          leaveSeat(lobby, playerId, message.inGameId);
+          leaveSeat(lobby, message.inGameId);
         }
         break;
       }
@@ -502,7 +492,7 @@ export function Lobby() {
         ? "name: " +
           reactPlayerId.name +
           " seat: " +
-          reactPlayerId.seat +
+          reactLobby?.players[reactPlayerId.inGameId].gameInfo.seat +
           "ingameid: " +
           reactPlayerId.inGameId
         : "placeholder, join below"}
@@ -554,7 +544,8 @@ export function Lobby() {
         ) : (
           ""
         )}
-        {reactPlayerId?.inGameId != undefined ? (
+        {reactPlayerId?.inGameId != undefined &&
+        reactLobby?.players[reactPlayerId.inGameId].gameInfo.seat != -1 ? (
           <div>
             <button onClick={awayToggle}>
               {reactLobby?.players[reactPlayerId?.inGameId].gameInfo.away
