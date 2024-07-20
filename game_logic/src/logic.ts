@@ -349,11 +349,11 @@ export function endGame(lobby: Lobby) {
 }
 
 export function isLeaving(player: PlayerGameInfo): boolean {
-  return player.leaving || player.kicked;
+  return player.leaving || player.kicking;
 }
 
 export function isLeavingString(player: PlayerGameInfo): string {
-  if (player.kicked) {
+  if (player.kicking) {
     return "kicked";
   }
   if (player.leaving) {

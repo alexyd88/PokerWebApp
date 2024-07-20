@@ -268,13 +268,13 @@ function requeueMessage(lobby: LobbyServer) {
 
 function shouldAutoAction(lobby: Lobby) {
   let curPlayer = lobby.players[lobby.seats[lobby.gameInfo.curPlayer]].gameInfo;
-  return curPlayer.away || curPlayer.leaving || curPlayer.kicked;
+  return curPlayer.away || curPlayer.leaving || curPlayer.kicking;
 }
 
 function handleAutoAction(lobby: Lobby) {
   if (!lobby.gameInfo.gameStarted) return;
   let curPlayer = lobby.players[lobby.seats[lobby.gameInfo.curPlayer]].gameInfo;
-  if (curPlayer.away || curPlayer.leaving || curPlayer.kicked) {
+  if (curPlayer.away || curPlayer.leaving || curPlayer.kicking) {
     handleMessage(
       getAutoAction(lobby, lobby.players[lobby.seats[lobby.gameInfo.curPlayer]])
     );
@@ -331,6 +331,17 @@ function handleMessage(message: Message) {
       handleAutoAction(lobby);
       if (
         lobby.players[message.inGameId].gameInfo.leaving &&
+        !lobby.gameInfo.gameStarted
+      )
+        leaveSeat(lobby, message.inGameId);
+      break;
+    }
+    case "kickingToggle": {
+      lobby.players[message.inGameId].gameInfo.kicking =
+        !lobby.players[message.inGameId].gameInfo.kicking;
+      handleAutoAction(lobby);
+      if (
+        lobby.players[message.inGameId].gameInfo.kicking &&
         !lobby.gameInfo.gameStarted
       )
         leaveSeat(lobby, message.inGameId);

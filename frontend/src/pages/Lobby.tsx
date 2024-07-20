@@ -93,6 +93,9 @@ export function Lobby() {
   function setHost() {
     handleButton("setHost");
   }
+  function kickingToggle() {
+    handleButton("kickingToggle");
+  }
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
     playerId = JSON.parse(JSON.stringify(reactPlayerId));
@@ -215,6 +218,21 @@ export function Lobby() {
         const message: Message = {
           id: -1,
           type: "setHost",
+          playerId: playerId,
+          inGameId: Number(inGameId.value),
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
+        break;
+      }
+      case "kickingToggle": {
+        const inGameId: HTMLInputElement = document.getElementById(
+          "player_id"
+        ) as HTMLInputElement;
+        const message: Message = {
+          id: -1,
+          type: "kickingToggle",
           playerId: playerId,
           inGameId: Number(inGameId.value),
           lobbyId: lobbyId,
@@ -406,6 +424,17 @@ export function Lobby() {
         }
         break;
       }
+      case "kickingToggle": {
+        lobby.players[message.inGameId].gameInfo.kicking =
+          !lobby.players[message.inGameId].gameInfo.kicking;
+        if (
+          lobby.players[message.inGameId].gameInfo.kicking &&
+          !lobby.gameInfo.gameStarted
+        ) {
+          leaveSeat(lobby, message.inGameId);
+        }
+        break;
+      }
       case "endGameToggle": {
         lobby.isEnding = !lobby.isEnding;
         break;
@@ -565,6 +594,7 @@ export function Lobby() {
           <div>
             <input type="number" id="player_id"></input>
             <button onClick={setHost}>setHost</button>
+            <button onClick={kickingToggle}>kick</button>
             <div></div>
             <button onClick={start}>start</button>
             <button onClick={pauseToggle}>

@@ -126,6 +126,11 @@ type MessageLeavingToggle = {
   inGameId: number;
 };
 
+type MessageKickingToggle = {
+  type: "kickingToggle";
+  inGameId: number;
+};
+
 export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageAction
   | MessageChat
@@ -138,6 +143,7 @@ export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageAwayToggle
   | MessageSetHost
   | MessageLeavingToggle
+  | MessageKickingToggle
 );
 
 export type MessageWithoutPlayerId = { playerId: null } & (
@@ -213,7 +219,7 @@ export function sit(lobby: Lobby, playerId: PlayerId, seat: number): void {
   lobby.seats[seat] = playerId.inGameId;
   lobby.players[playerId.inGameId].gameInfo.seat = seat;
   let pg = lobby.players[playerId.inGameId].gameInfo;
-  pg.kicked = false;
+  pg.kicking = false;
   pg.leaving = false;
   pg.startedInPot = false;
   pg.inPot = false;
@@ -400,7 +406,7 @@ export interface PlayerGameInfo {
   curHandStrength: number;
   away: boolean;
   leaving: boolean;
-  kicked: boolean;
+  kicking: boolean;
   seat: number;
 }
 
@@ -476,7 +482,7 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     curHandStrength: -1,
     away: false,
     startedInPot: false,
-    kicked: false,
+    kicking: false,
     leaving: false,
     seat: -1,
   };
