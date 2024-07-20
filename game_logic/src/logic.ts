@@ -362,6 +362,24 @@ export function isLeavingString(player: PlayerGameInfo): string {
   return "playing";
 }
 
+export function updateChips(player: PlayerGameInfo) {
+  switch (player.changeChips.modifier) {
+    case "add": {
+      player.stack += player.changeChips.amount;
+      break;
+    }
+    case "remove": {
+      player.stack -= player.changeChips.amount;
+      break;
+    }
+    case "set": {
+      player.stack = player.changeChips.amount;
+      break;
+    }
+  }
+  player.changeChips = { modifier: "add", amount: 0 };
+}
+
 export function endHand(lobby: Lobby) {
   let players: Player[] = lobby.players;
   let lg = lobby.gameInfo;
@@ -378,6 +396,7 @@ export function endHand(lobby: Lobby) {
     player.curBestHand.length = 0;
     player.chipsThisRound = 0;
     player.hasHoleCards = false;
+    updateChips(player);
     player.card1 = { num: 0, numDisplay: "?", suit: "?" };
     player.card2 = { num: 0, numDisplay: "?", suit: "?" };
     for (let j = 0; j < SEATS_NUMBER; j++) if (lobby.seats[j] == i) seat = j;

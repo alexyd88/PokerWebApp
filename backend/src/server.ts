@@ -38,6 +38,7 @@ import {
   SHOWDOWN_TIME,
   sit,
   TURN_TIME,
+  updateChips,
 } from "game_logic";
 import { lobbies } from "./controllers/lobbies";
 import { send } from "node:process";
@@ -345,6 +346,13 @@ function handleMessage(message: Message) {
         !lobby.gameInfo.gameStarted
       )
         leaveSeat(lobby, message.inGameId);
+      break;
+    }
+    case "changeChips": {
+      lobby.players[message.inGameId].gameInfo.changeChips =
+        message.changeChips;
+      if (!lobby.gameInfo.gameStarted)
+        updateChips(lobby.players[message.inGameId].gameInfo);
       break;
     }
     case "showMyCards": {

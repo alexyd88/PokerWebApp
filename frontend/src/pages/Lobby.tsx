@@ -31,6 +31,7 @@ import {
   TURN_TIME,
   endGame,
   leaveSeat,
+  updateChips,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -95,6 +96,15 @@ export function Lobby() {
   }
   function kickingToggle() {
     handleButton("kickingToggle");
+  }
+  function addChips() {
+    handleButton("add");
+  }
+  function removeChips() {
+    handleButton("remove");
+  }
+  function setChips() {
+    handleButton("set");
   }
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
@@ -233,6 +243,27 @@ export function Lobby() {
         const message: Message = {
           id: -1,
           type: "kickingToggle",
+          playerId: playerId,
+          inGameId: Number(inGameId.value),
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
+        break;
+      }
+      case "add":
+      case "remove":
+      case "set": {
+        const inGameId: HTMLInputElement = document.getElementById(
+          "player_id"
+        ) as HTMLInputElement;
+        const amount: HTMLInputElement = document.getElementById(
+          "amount"
+        ) as HTMLInputElement;
+        const message: Message = {
+          id: -1,
+          type: "changeChips",
+          changeChips: { modifier: button, amount: Number(amount.value) },
           playerId: playerId,
           inGameId: Number(inGameId.value),
           lobbyId: lobbyId,
@@ -435,6 +466,13 @@ export function Lobby() {
         }
         break;
       }
+      case "changeChips": {
+        lobby.players[message.inGameId].gameInfo.changeChips =
+          message.changeChips;
+        if (!lobby.gameInfo.gameStarted)
+          updateChips(lobby.players[message.inGameId].gameInfo);
+        break;
+      }
       case "endGameToggle": {
         lobby.isEnding = !lobby.isEnding;
         break;
@@ -595,6 +633,10 @@ export function Lobby() {
             <input type="number" id="player_id"></input>
             <button onClick={setHost}>setHost</button>
             <button onClick={kickingToggle}>kick</button>
+            <input type="number" id="amount"></input>
+            <button onClick={addChips}>add chips</button>
+            <button onClick={removeChips}>remove chips</button>
+            <button onClick={setChips}>set chips</button>
             <div></div>
             <button onClick={start}>start</button>
             <button onClick={pauseToggle}>

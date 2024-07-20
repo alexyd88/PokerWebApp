@@ -131,6 +131,12 @@ type MessageKickingToggle = {
   inGameId: number;
 };
 
+type MessageChangeChips = {
+  type: "changeChips";
+  inGameId: number;
+  changeChips: ChangeChips;
+};
+
 export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageAction
   | MessageChat
@@ -144,6 +150,7 @@ export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageSetHost
   | MessageLeavingToggle
   | MessageKickingToggle
+  | MessageChangeChips
 );
 
 export type MessageWithoutPlayerId = { playerId: null } & (
@@ -392,6 +399,11 @@ export interface Card {
   numDisplay: string;
 }
 
+export interface ChangeChips {
+  modifier: "add" | "remove" | "set";
+  amount: number;
+}
+
 export interface PlayerGameInfo {
   stack: number;
   chipsInPot: number;
@@ -408,6 +420,7 @@ export interface PlayerGameInfo {
   leaving: boolean;
   kicking: boolean;
   seat: number;
+  changeChips: ChangeChips;
 }
 
 export function playerGameInfoToString(player: Player, lobby: Lobby) {
@@ -485,6 +498,7 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     kicking: false,
     leaving: false,
     seat: -1,
+    changeChips: { modifier: "add", amount: 0 },
   };
 }
 
