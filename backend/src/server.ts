@@ -26,6 +26,8 @@ import {
   getErrorFromAction,
   getNumInPot,
   getRandSeat,
+  isLeaving,
+  leaveSeat,
   messageToString,
   NEW_CARD_TIME,
   noActionsLeft,
@@ -166,9 +168,11 @@ function sendEndGame(lobby: Lobby) {
 function sendEndHand(lobby: LobbyServer) {
   if (lobby.isEnding || getNumInPot(lobby) < 2) {
     sendEndGame(lobby);
+    console.log("SENT END GAME");
     return;
   }
   sendReset(lobby);
+  console.log("SENT RESET");
 }
 
 function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
@@ -185,12 +189,8 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
 
 //expects curplayer to be real player
 function expectAction(lobby: LobbyServer) {
-  if (noActionsLeft(lobby)) {
-    handleNoActionsLeft(lobby);
-    return;
-  }
-  if (currentPlayerAway(lobby)) {
-    handleCurrentPlayerAway(lobby);
+  if (shouldAutoAction(lobby)) {
+    handleAutoAction(lobby);
     return;
   }
   clearTimeout(lobby.timeout);
@@ -266,22 +266,15 @@ function requeueMessage(lobby: LobbyServer) {
   }
 }
 
-function currentPlayerAway(lobby: Lobby) {
-  if (!lobby.gameInfo.gameStarted) return false;
-  //console.log(lobby.gameInfo.curPlayer, lobby.seats[lobby.gameInfo.curPlayer]);
-  return lobby.players[lobby.seats[lobby.gameInfo.curPlayer]].gameInfo.away;
+function shouldAutoAction(lobby: Lobby) {
+  let curPlayer = lobby.players[lobby.seats[lobby.gameInfo.curPlayer]].gameInfo;
+  return curPlayer.away || curPlayer.leaving || curPlayer.kicked;
 }
 
-function handleCurrentPlayerAway(lobby: Lobby) {
-  console.log("YO,", currentPlayerAway(lobby));
-  if (currentPlayerAway(lobby))
-    handleMessage(
-      getAutoAction(lobby, lobby.players[lobby.seats[lobby.gameInfo.curPlayer]])
-    );
-}
-
-function handleNoActionsLeft(lobby: Lobby) {
-  if (noActionsLeft(lobby)) {
+function handleAutoAction(lobby: Lobby) {
+  if (!lobby.gameInfo.gameStarted) return;
+  let curPlayer = lobby.players[lobby.seats[lobby.gameInfo.curPlayer]].gameInfo;
+  if (curPlayer.away || curPlayer.leaving || curPlayer.kicked) {
     handleMessage(
       getAutoAction(lobby, lobby.players[lobby.seats[lobby.gameInfo.curPlayer]])
     );
@@ -329,7 +322,22 @@ function handleMessage(message: Message) {
         lobby.players[message.inGameId].gameInfo.away &&
         message.inGameId == lobby.seats[lobby.gameInfo.curPlayer]
       )
-        handleCurrentPlayerAway(lobby);
+        handleAutoAction(lobby);
+      break;
+    }
+    case "leavingToggle": {
+      lobby.players[message.inGameId].gameInfo.leaving =
+        !lobby.players[message.inGameId].gameInfo.leaving;
+      handleAutoAction(lobby);
+      if (
+        lobby.players[message.inGameId].gameInfo.leaving &&
+        !lobby.gameInfo.gameStarted
+      )
+        leaveSeat(
+          lobby,
+          lobby.players[message.inGameId].playerId,
+          message.inGameId
+        );
       break;
     }
     case "showMyCards": {
@@ -419,8 +427,8 @@ function handleMessage(message: Message) {
       break;
     }
   }
-  console.log(lobby.gameInfo.dealerChip);
-  console.log(lobby.state);
+  // console.log(lobby.gameInfo.dealerChip);
+  // console.log(lobby.state);
 }
 
 io.on("connection", (socket) => {

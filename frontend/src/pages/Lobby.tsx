@@ -30,6 +30,7 @@ import {
   cardsToString,
   TURN_TIME,
   endGame,
+  leaveSeat,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -85,6 +86,9 @@ export function Lobby() {
   }
   function awayToggle() {
     handleButton("awayToggle");
+  }
+  function leavingToggle() {
+    handleButton("leavingToggle");
   }
   function setHost() {
     handleButton("setHost");
@@ -191,15 +195,28 @@ export function Lobby() {
         socket?.emit("message", message);
         break;
       }
+      case "leavingToggle": {
+        //not from host
+        const message: Message = {
+          id: -1,
+          type: "leavingToggle",
+          playerId: playerId,
+          inGameId: playerId.inGameId,
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
+        break;
+      }
       case "setHost": {
-        const gameId: HTMLInputElement = document.getElementById(
+        const inGameId: HTMLInputElement = document.getElementById(
           "player_id"
         ) as HTMLInputElement;
         const message: Message = {
           id: -1,
           type: "setHost",
           playerId: playerId,
-          inGameId: Number(gameId.value),
+          inGameId: Number(inGameId.value),
           lobbyId: lobbyId,
           date: Date.now(),
         };
@@ -384,6 +401,21 @@ export function Lobby() {
           !lobby.players[message.inGameId].gameInfo.away;
         break;
       }
+      case "leavingToggle": {
+        if (playerId == null) {
+          console.log("WTF");
+          return;
+        }
+        lobby.players[message.inGameId].gameInfo.leaving =
+          !lobby.players[message.inGameId].gameInfo.leaving;
+        if (
+          lobby.players[message.inGameId].gameInfo.leaving &&
+          !lobby.gameInfo.gameStarted
+        ) {
+          leaveSeat(lobby, playerId, message.inGameId);
+        }
+        break;
+      }
       case "endGameToggle": {
         lobby.isEnding = !lobby.isEnding;
         break;
@@ -523,11 +555,18 @@ export function Lobby() {
           ""
         )}
         {reactPlayerId?.inGameId != undefined ? (
-          <button onClick={awayToggle}>
-            {reactLobby?.players[reactPlayerId?.inGameId].gameInfo.away
-              ? "I'm back"
-              : "away"}{" "}
-          </button>
+          <div>
+            <button onClick={awayToggle}>
+              {reactLobby?.players[reactPlayerId?.inGameId].gameInfo.away
+                ? "I'm back"
+                : "away"}
+            </button>
+            <button onClick={leavingToggle}>
+              {!reactLobby?.players[reactPlayerId?.inGameId].gameInfo.leaving
+                ? "leave"
+                : "cancel leave"}
+            </button>
+          </div>
         ) : (
           ""
         )}

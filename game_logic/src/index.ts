@@ -4,6 +4,7 @@ import {
   endRound,
   findNext,
   getRandInt,
+  isLeaving,
   isValidRaise,
   raise,
   resetHand,
@@ -12,6 +13,7 @@ import {
 } from "./logic";
 import { strengthToString } from "./handEval";
 import { Socket } from "socket.io";
+import { SEATS_NUMBER } from "./constants";
 
 export * from "./logic";
 export * from "./handEval";
@@ -119,6 +121,11 @@ type MessageAwayToggle = {
   inGameId: number; //host might send diff person's ingameid
 };
 
+type MessageLeavingToggle = {
+  type: "leavingToggle";
+  inGameId: number;
+};
+
 export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageAction
   | MessageChat
@@ -130,6 +137,7 @@ export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageEndGameToggle
   | MessageAwayToggle
   | MessageSetHost
+  | MessageLeavingToggle
 );
 
 export type MessageWithoutPlayerId = { playerId: null } & (
@@ -198,17 +206,27 @@ export function prepareMessageForClient(
 }
 
 export function sit(lobby: Lobby, playerId: PlayerId, seat: number): void {
-  if (playerId.seat != -1) {
-    console.log("seat not -1 hacker");
-    return;
-  }
   if (lobby.seats[seat] != -1) {
     console.log("seat full hacker");
     return;
   }
   lobby.seats[seat] = playerId.inGameId;
   lobby.players[playerId.inGameId].playerId.seat = seat;
+  let pg = lobby.players[playerId.inGameId].gameInfo;
+  pg.kicked = false;
+  pg.leaving = false;
+  pg.startedInPot = false;
+  pg.inPot = false;
+  pg.away = false;
   playerId.seat = seat;
+}
+
+export function leaveSeat(lobby: Lobby, playerId: PlayerId, inGameId: number) {
+  let seat = lobby.players[inGameId].playerId.seat;
+  console.log("I LEFT", seat);
+  lobby.players[inGameId].playerId.seat = -1;
+  playerId.seat = -1;
+  lobby.seats[seat] = -1;
 }
 
 export function validateSeat(
@@ -375,6 +393,7 @@ export interface PlayerGameInfo {
   chipsInPot: number;
   chipsThisRound: number;
   inPot: boolean;
+  startedInPot: boolean;
   hasHoleCards: boolean;
   card1: Card;
   card2: Card;
@@ -382,6 +401,8 @@ export interface PlayerGameInfo {
   curBestHand: Card[];
   curHandStrength: number;
   away: boolean;
+  leaving: boolean;
+  kicked: boolean;
 }
 
 export function playerGameInfoToString(player: Player, lobby: Lobby) {
@@ -455,6 +476,9 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     curBestHand: [],
     curHandStrength: -1,
     away: false,
+    startedInPot: false,
+    kicked: false,
+    leaving: false,
   };
 }
 
@@ -504,10 +528,11 @@ export function setPlayerNameClient(lobby: Lobby, playerId: PlayerId): void {
 //only should be called when round is not active
 export function getNumInPot(lobby: Lobby): number {
   let np: number = 0;
-  for (let i = 0; i < lobby.players.length; i++) {
-    if (lobby.players[i].gameInfo.stack == 0)
-      lobby.players[i].gameInfo.away = true;
-    if (!lobby.players[i].gameInfo.away) np++;
+  for (let i = 0; i < SEATS_NUMBER; i++) {
+    if (lobby.seats[i] == -1) continue;
+    let player = lobby.players[lobby.seats[i]].gameInfo;
+    if (player.stack == 0 || isLeaving(player)) player.away = true;
+    if (!player.away) np++;
   }
   return np;
 }
@@ -536,13 +561,11 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
   if (lobby.isPaused) return "Lobby is paused";
   switch (message.action) {
     case "start": {
-      let numPlayers = 0;
-      for (let i = 0; i < 10; i++) {
-        if (lobby.seats[i] == -1) continue;
-        let player: PlayerGameInfo = lobby.players[lobby.seats[i]].gameInfo;
-        if (!player.away && player.stack != 0) numPlayers++;
+      let numPlayers = getNumInPot(lobby);
+      if (numPlayers < 2) {
+        console.log(numPlayers);
+        return "Not enough players";
       }
-      if (numPlayers < 2) return "Not enough players";
       if (lg.gameStarted) return "Already started";
       break;
     }
