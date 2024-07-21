@@ -14,6 +14,7 @@ import type {
   LobbyServer,
   Message,
   Player,
+  PlayerId,
   ShowCards,
 } from "game_logic";
 import {
@@ -490,6 +491,19 @@ io.on("connection", (socket) => {
     console.log("socket joined:", room);
     socket.join(room);
   });
+  socket.on(
+    "getPlayer",
+    async (playerId: string, lobbyId: string, callback) => {
+      let lobby: Lobby = lobbies.get(lobbyId);
+      let oldPlayerId: PlayerId | null = null;
+      for (let i = 0; i < lobby.players.length; i++)
+        if (lobby.players[i].playerId.id == playerId)
+          oldPlayerId = lobby.players[i].playerId;
+      callback({
+        playerId: oldPlayerId,
+      });
+    }
+  );
   socket.on("addPlayer", async (message: Message, callback) => {
     if (message.type != "addPlayer") {
       console.log("how did u get here bro");

@@ -358,9 +358,9 @@ export function Lobby() {
           inGameId: message.playerId.inGameId,
           name: "GUEST",
         };
-        console.log("gonna set pid to ", playerId);
         setPlayerId(playerId);
-        console.log("MY ACTUALY PID", playerId);
+        localStorage.setItem(lobbyId, id);
+        console.log("LOCALSET", lobbyId, id);
       }
     });
   }
@@ -567,7 +567,24 @@ export function Lobby() {
   useEffect(() => {
     const socket = io("localhost:3002");
     socket.emit("joinLobby", lobbyId);
-    replay(socket, true);
+    if (lobbyId == undefined) return;
+    const pid = null; //localStorage.getItem(lobbyId);
+    console.log("LOCAL", pid);
+    if (pid != null) {
+      replay(socket, false);
+      socket.emit(
+        "getPlayer",
+        pid,
+        lobbyId,
+        (response: { playerId: PlayerId | null }) => {
+          if (response.playerId == null) console.log("U LIED BRO");
+          console.log(response.playerId);
+          setPlayerId(response.playerId);
+        }
+      );
+    } else {
+      replay(socket, true);
+    }
     console.log(new Date());
     socket?.on("message", (message: Message) => {
       handleNewMessage(message);
