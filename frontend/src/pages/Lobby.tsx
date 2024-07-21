@@ -35,6 +35,7 @@ import {
   sitRequest,
   seatRequestToString,
   cancelSitRequest,
+  getLedgerEntry,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -505,6 +506,8 @@ export function Lobby() {
       }
       case "approveSitRequest": {
         approveSitRequest(lobby, message.requestId);
+        if (message.playerId.inGameId == playerId?.inGameId)
+          setHasSeatRequest(false);
         break;
       }
       case "cancelSitRequest": {
@@ -619,17 +622,22 @@ export function Lobby() {
           : ""}
       </div>
       <div>
-        {!hasSeatRequest ? (
-          <div>
-            <input type="text" id="name" placeholder="name" />
-            <input type="number" id="seat" placeholder="seat" />
-            <input type="number" id="chips" placeholder="chips" />
-            <button onClick={sitSubmit}>sit</button>
-          </div>
+        {reactPlayerId?.inGameId != undefined &&
+        reactLobby?.players[reactPlayerId?.inGameId].gameInfo.seat == -1 ? (
+          !hasSeatRequest ? (
+            <div>
+              <input type="text" id="name" placeholder="name" />
+              <input type="number" id="seat" placeholder="seat" />
+              <input type="number" id="chips" placeholder="chips" />
+              <button onClick={sitSubmit}>sit</button>
+            </div>
+          ) : (
+            <div>
+              <button onClick={cancelSit}>cancel sit</button>
+            </div>
+          )
         ) : (
-          <div>
-            <button onClick={cancelSit}>cancel sit</button>
-          </div>
+          ""
         )}
 
         <button onClick={sayHiSubmit}> say hi </button>
@@ -715,6 +723,16 @@ export function Lobby() {
               <div key={index}>
                 {index + " " + seatRequestToString(seatRequest)}
               </div>
+            );
+          })}
+        </div>
+        <div>
+          ledger
+          <div></div>
+          buy in, buy out, net
+          {reactLobby?.players.map((player, index) => {
+            return (
+              <div key={index}>{index + " " + getLedgerEntry(player)}</div>
             );
           })}
         </div>

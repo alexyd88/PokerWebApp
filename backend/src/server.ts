@@ -272,13 +272,17 @@ function requeueMessage(lobby: LobbyServer) {
 
 function shouldAutoAction(lobby: Lobby) {
   let curPlayer = lobby.players[lobby.seats[lobby.gameInfo.curPlayer]].gameInfo;
-  return curPlayer.away || curPlayer.leaving || curPlayer.kicking;
+  return (
+    curPlayer.away ||
+    curPlayer.leaving ||
+    curPlayer.kicking ||
+    noActionsLeft(lobby)
+  );
 }
 
 function handleAutoAction(lobby: Lobby) {
   if (!lobby.gameInfo.gameStarted) return;
-  let curPlayer = lobby.players[lobby.seats[lobby.gameInfo.curPlayer]].gameInfo;
-  if (curPlayer.away || curPlayer.leaving || curPlayer.kicking) {
+  if (shouldAutoAction(lobby)) {
     handleMessage(
       getAutoAction(lobby, lobby.players[lobby.seats[lobby.gameInfo.curPlayer]])
     );

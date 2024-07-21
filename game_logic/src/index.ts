@@ -8,6 +8,7 @@ import {
   isValidRaise,
   raise,
   resetHand,
+  setChips,
   showdown,
   takeFromPot,
 } from "./logic";
@@ -305,7 +306,7 @@ export function sit(
   player.playerId.name = name;
   lobby.seats[seat] = inGameId;
   let pg = player.gameInfo;
-  pg.stack = chips;
+  setChips(pg, chips);
   pg.seat = seat;
   pg.kicking = false;
   pg.leaving = false;
@@ -342,6 +343,19 @@ export function validateSeat(
     lobby.players[playerId.inGameId].gameInfo.seat == -1
   );
   // return true;
+}
+
+export function getLedgerEntry(player: Player): string {
+  const pg = player.gameInfo;
+  return (
+    player.playerId.name +
+    ": " +
+    pg.buyIn +
+    " " +
+    pg.buyOut +
+    " " +
+    (pg.stack - pg.buyIn + pg.buyOut)
+  );
 }
 
 export function createChat(
@@ -512,6 +526,9 @@ export interface PlayerGameInfo {
   kicking: boolean;
   seat: number;
   changeChips: ChangeChips;
+  buyIn: number;
+  buyOut: number;
+  //net is stack - buyIn + buyOut
 }
 
 export function playerGameInfoToString(player: Player, lobby: Lobby) {
@@ -574,7 +591,9 @@ export function lobbyInfoToString(lobby: LobbyGameInfo) {
 
 export function createPlayerGameInfo(): PlayerGameInfo {
   return {
-    stack: 1000,
+    stack: 0,
+    buyIn: 0,
+    buyOut: 0,
     chipsInPot: 0,
     chipsThisRound: 0,
     inPot: false,

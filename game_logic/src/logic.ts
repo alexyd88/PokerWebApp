@@ -4,6 +4,7 @@ import {
   ActionResult,
   Card,
   cardsToString,
+  ChangeChips,
   leaveSeat,
   Lobby,
   LobbyGameInfo,
@@ -363,21 +364,32 @@ export function isLeavingString(player: PlayerGameInfo): string {
 }
 
 export function updateChips(player: PlayerGameInfo) {
+  const amt: number = player.changeChips.amount;
   switch (player.changeChips.modifier) {
     case "add": {
-      player.stack += player.changeChips.amount;
+      player.stack += amt;
+      player.buyIn += amt;
       break;
     }
     case "remove": {
-      player.stack -= player.changeChips.amount;
+      player.stack -= amt;
+      player.buyOut += amt;
       break;
     }
     case "set": {
-      player.stack = player.changeChips.amount;
+      const dif = player.stack - amt;
+      player.stack = amt;
+      if (dif > 0) player.buyOut += dif;
+      else player.buyIn -= dif;
       break;
     }
   }
   player.changeChips = { modifier: "add", amount: 0 };
+}
+
+export function setChips(player: PlayerGameInfo, chips: number) {
+  player.changeChips = { modifier: "set", amount: chips };
+  updateChips(player);
 }
 
 export function endHand(lobby: Lobby) {
