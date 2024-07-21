@@ -17,6 +17,8 @@ import type {
   ShowCards,
 } from "game_logic";
 import {
+  approveSitRequest,
+  cancelSitRequest,
   createChat,
   createMessageAction,
   createPlayerGameInfo,
@@ -37,6 +39,7 @@ import {
   setPlayerNameServer,
   SHOWDOWN_TIME,
   sit,
+  sitRequest,
   TURN_TIME,
   updateChips,
 } from "game_logic";
@@ -294,8 +297,33 @@ function handleMessage(message: Message) {
       setPlayerNameServer(lobby, message.playerId);
       break;
     }
-    case "sit": {
-      sit(lobbies.get(message.lobbyId), message.playerId, message.location);
+    case "sitRequest": {
+      sitRequest(
+        lobby,
+        message.seat,
+        message.name,
+        message.chips,
+        message.playerId.inGameId
+      );
+      if (message.playerId.inGameId == lobby.host) {
+        let newMessage: Message = {
+          type: "approveSitRequest",
+          id: -1,
+          lobbyId: lobby.id,
+          date: Date.now(),
+          playerId: message.playerId,
+          requestId: lobby.seatRequests.length - 1,
+        };
+        handleMessage(newMessage);
+      }
+      break;
+    }
+    case "cancelSitRequest": {
+      cancelSitRequest(lobby, message.playerId.inGameId);
+      break;
+    }
+    case "approveSitRequest": {
+      approveSitRequest(lobby, message.requestId);
       break;
     }
     case "pauseToggle": {

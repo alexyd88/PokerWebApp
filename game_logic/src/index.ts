@@ -91,9 +91,20 @@ type MessageSetPlayer = {
   type: "setPlayerName";
 };
 
-type MessageSit = {
-  type: "sit";
-  location: number;
+type MessageSitRequest = {
+  type: "sitRequest";
+  name: string;
+  seat: number;
+  chips: number;
+};
+
+type MessageCancelSitRequest = {
+  type: "cancelSitRequest";
+};
+
+type MessageApproveSitRequest = {
+  type: "approveSitRequest";
+  requestId: number;
 };
 
 type MessageStart = {
@@ -142,7 +153,7 @@ export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageChat
   | MessageAddPlayer
   | MessageSetPlayer
-  | MessageSit
+  | MessageSitRequest
   | MessagePauseToggle
   | MessageShowMyCards
   | MessageEndGameToggle
@@ -151,6 +162,8 @@ export type MessageWithPlayerId = { playerId: PlayerId } & (
   | MessageLeavingToggle
   | MessageKickingToggle
   | MessageChangeChips
+  | MessageApproveSitRequest
+  | MessageCancelSitRequest
 );
 
 export type MessageWithoutPlayerId = { playerId: null } & (
@@ -218,14 +231,82 @@ export function prepareMessageForClient(
   return newMessage;
 }
 
-export function sit(lobby: Lobby, playerId: PlayerId, seat: number): void {
+export function sitRequest(
+  lobby: Lobby,
+  seat: number,
+  name: string,
+  chips: number,
+  inGameId: number
+) {
+  lobby.seatRequests.push({
+    seat: seat,
+    name: name,
+    chips: chips,
+    inGameId: inGameId,
+  });
+}
+
+export function cancelSitRequest(lobby: Lobby, inGameId: number) {
+  for (let i = 0; i < lobby.seatRequests.length; i++) {
+    if (lobby.seatRequests[i].inGameId == inGameId) {
+      lobby.seatRequests.splice(i, 1);
+      i--;
+    }
+  }
+}
+
+export function getNextEmptySeat(lobby: Lobby, seat: number): number {
+  for (let i = seat + 1; i < SEATS_NUMBER; i++)
+    if (lobby.seats[i] == -1) return i;
+  for (let i = 0; i < seat; i++) if (lobby.seats[i] == -1) return i;
+  return -1;
+}
+
+export function approveSitRequest(lobby: Lobby, requestId: number) {
+  const request: SeatRequest = lobby.seatRequests[requestId];
+  sit(lobby, request.inGameId, request.seat, request.name, request.chips);
+  lobby.seatRequests.splice(requestId, 1);
+  for (let i = 0; i < lobby.seatRequests.length; i++) {
+    if (request.seat == lobby.seatRequests[i].seat) {
+      let nextSeat = getNextEmptySeat(lobby, lobby.seatRequests[i].seat);
+      if (nextSeat == -1) {
+        lobby.seatRequests.splice(i, 1);
+        i--;
+      } else {
+        lobby.seatRequests[i].seat = nextSeat;
+      }
+    }
+  }
+}
+
+export function seatRequestToString(seatRequest: SeatRequest): string {
+  return (
+    seatRequest.name +
+    " wants to sit at " +
+    seatRequest.seat +
+    " with " +
+    seatRequest.chips +
+    " chips"
+  );
+}
+
+export function sit(
+  lobby: Lobby,
+  inGameId: number,
+  seat: number,
+  name: string,
+  chips: number
+): void {
   if (lobby.seats[seat] != -1) {
     console.log("seat full hacker");
     return;
   }
-  lobby.seats[seat] = playerId.inGameId;
-  lobby.players[playerId.inGameId].gameInfo.seat = seat;
-  let pg = lobby.players[playerId.inGameId].gameInfo;
+  let player = lobby.players[inGameId];
+  player.playerId.name = name;
+  lobby.seats[seat] = inGameId;
+  let pg = player.gameInfo;
+  pg.stack = chips;
+  pg.seat = seat;
   pg.kicking = false;
   pg.leaving = false;
   pg.startedInPot = false;
@@ -314,10 +395,18 @@ export interface LobbyGameInfo {
   board: Card[];
 }
 
+export interface SeatRequest {
+  name: string;
+  chips: number;
+  seat: number;
+  inGameId: number;
+}
+
 export interface Lobby {
   id: string;
   players: Player[];
   seats: number[];
+  seatRequests: SeatRequest[];
   host: number; //player ingameid
   gameInfo: LobbyGameInfo;
   messages: Message[];
@@ -358,11 +447,12 @@ export function createLobbyGameInfo(): LobbyGameInfo {
 
 export function createLobbyServer(): LobbyServer {
   const seats: number[] = [];
-  for (let i = 0; i < 10; i++) seats.push(-1);
+  for (let i = 0; i < SEATS_NUMBER; i++) seats.push(-1);
   return {
     id: uuidv4(),
     players: [],
     seats: seats,
+    seatRequests: [],
     host: 0,
     messages: [],
     gameInfo: createLobbyGameInfo(),
@@ -378,12 +468,13 @@ export function createLobbyServer(): LobbyServer {
 
 export function createLobbyClient(id: string): LobbyClient {
   const seats: number[] = [];
-  for (let i = 0; i < 10; i++) seats.push(-1);
+  for (let i = 0; i < SEATS_NUMBER; i++) seats.push(-1);
   return {
     id: id,
     players: [],
     host: 0,
     seats: seats,
+    seatRequests: [],
     messages: [],
     gameInfo: createLobbyGameInfo(),
     isPaused: false,

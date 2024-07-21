@@ -13,7 +13,6 @@ import {
   createLobbyClient,
   createChat,
   validateSeat,
-  sit,
   addExistingPlayer,
   messageToString,
   createPlayerId,
@@ -32,6 +31,10 @@ import {
   endGame,
   leaveSeat,
   updateChips,
+  approveSitRequest,
+  sitRequest,
+  seatRequestToString,
+  cancelSitRequest,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -42,6 +45,7 @@ export function Lobby() {
   const [reactPlayerId, setPlayerId] = useState<PlayerId | null>(null);
   const [lastActionTime, setLastActionTime] = useState<number | null>(null);
   const [timer, setTimer] = useState<number | null>(null);
+  const [hasSeatRequest, setHasSeatRequest] = useState<boolean>(false);
   let lobby: LobbyClient = createLobbyClient("LMAO DUMBASS");
   let playerId: PlayerId | null = null;
   if (lobbyId != null) lobby = createLobbyClient(lobbyId);
@@ -52,14 +56,14 @@ export function Lobby() {
       console.log("SET WARNING");
     }
   }
-  function playerNameSubmit() {
-    handleButton("playerSubmit");
-  }
   function sayHiSubmit() {
     handleButton("sayHi");
   }
   function sitSubmit() {
     handleButton("sitSubmit");
+  }
+  function cancelSit() {
+    handleButton("cancelSit");
   }
   function start() {
     handleButton("start");
@@ -106,6 +110,9 @@ export function Lobby() {
   function setChips() {
     handleButton("set");
   }
+  function approve() {
+    handleButton("approve");
+  }
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
     playerId = JSON.parse(JSON.stringify(reactPlayerId));
@@ -123,47 +130,49 @@ export function Lobby() {
         }
         break;
       }
-      case "playerSubmit": {
-        const name: HTMLInputElement = document.getElementById(
-          "name"
+      case "approve": {
+        const approveId: HTMLInputElement = document.getElementById(
+          "approveId"
         ) as HTMLInputElement;
-        if (name.value.length > 0 && playerId != null) {
-          playerId.name = name.value;
-          const message: Message = {
-            date: Date.now(),
-            type: "setPlayerName",
-            lobbyId: lobbyId,
-            id: -1,
-            playerId: playerId,
-          };
-          socket?.emit("message", message);
-        } else {
-          console.log(
-            "something wrong player submit",
-            name.value.length > 0,
-            playerId != null,
-            lobby != null
-          );
-          displayWarning("couldn't change name");
-        }
+        const message: Message = {
+          date: Date.now(),
+          lobbyId: lobbyId,
+          type: "approveSitRequest",
+          requestId: Number(approveId.value),
+          id: -1,
+          playerId: playerId,
+        };
+        socket?.emit("message", message);
         break;
       }
       case "sitSubmit": {
         console.log(lobby.players, playerId.inGameId);
-        const seat: HTMLInputElement = document.getElementById(
+        const nameInput: HTMLInputElement = document.getElementById(
+          "name"
+        ) as HTMLInputElement;
+        const seatInput: HTMLInputElement = document.getElementById(
           "seat"
         ) as HTMLInputElement;
-        const seatNum = Number(seat.value);
+        const chipsInput: HTMLInputElement = document.getElementById(
+          "chips"
+        ) as HTMLInputElement;
+        const seat = Number(seatInput.value);
+        const chips = Number(chipsInput.value);
+        let name = nameInput.value;
+        if (name == "") name = "GUEST";
         if (
           playerId != null &&
           lobby != null &&
-          validateSeat(lobby, playerId, seatNum)
+          validateSeat(lobby, playerId, seat)
         ) {
+          setHasSeatRequest(true);
           const message: Message = {
             date: Date.now(),
             lobbyId: lobbyId,
-            type: "sit",
-            location: seatNum,
+            type: "sitRequest",
+            seat: seat,
+            name: name,
+            chips: chips,
             id: -1,
             playerId: playerId,
           };
@@ -171,6 +180,18 @@ export function Lobby() {
         } else {
           displayWarning("can't sit there");
         }
+        break;
+      }
+      case "cancelSit": {
+        setHasSeatRequest(false);
+        const message: Message = {
+          date: Date.now(),
+          lobbyId: lobbyId,
+          type: "cancelSitRequest",
+          id: -1,
+          playerId: playerId,
+        };
+        socket?.emit("message", message);
         break;
       }
       case "pauseToggle": {
@@ -354,15 +375,6 @@ export function Lobby() {
         //nothing special really
         break;
       }
-      case "sit": {
-        console.log(message.playerId.inGameId, lobby.players);
-        sit(
-          lobby,
-          lobby.players[message.playerId.inGameId].playerId,
-          message.location
-        );
-        break;
-      }
       case "addPlayer": {
         addExistingPlayer(lobby, message.playerId);
         break;
@@ -481,6 +493,24 @@ export function Lobby() {
         lobby.host = message.inGameId;
         break;
       }
+      case "sitRequest": {
+        sitRequest(
+          lobby,
+          message.seat,
+          message.name,
+          message.chips,
+          message.playerId.inGameId
+        );
+        break;
+      }
+      case "approveSitRequest": {
+        approveSitRequest(lobby, message.requestId);
+        break;
+      }
+      case "cancelSitRequest": {
+        cancelSitRequest(lobby, message.playerId.inGameId);
+        break;
+      }
     }
   }
 
@@ -589,11 +619,20 @@ export function Lobby() {
           : ""}
       </div>
       <div>
-        <input type="text" id="name" />
-        <button onClick={playerNameSubmit}>join</button>
-        <button onClick={sayHiSubmit}> Say Hi </button>
-        <input type="text" id="seat" />
-        <button onClick={sitSubmit}>sit</button>
+        {!hasSeatRequest ? (
+          <div>
+            <input type="text" id="name" placeholder="name" />
+            <input type="number" id="seat" placeholder="seat" />
+            <input type="number" id="chips" placeholder="chips" />
+            <button onClick={sitSubmit}>sit</button>
+          </div>
+        ) : (
+          <div>
+            <button onClick={cancelSit}>cancel sit</button>
+          </div>
+        )}
+
+        <button onClick={sayHiSubmit}> say hi </button>
         <div id="illegal"></div>
         <input
           type="number"
@@ -639,13 +678,15 @@ export function Lobby() {
             <button onClick={setChips}>set chips</button>
             <div></div>
             <button onClick={start}>start</button>
-            <button onClick={pauseToggle}>
-              {reactLobby?.isPaused ? "resume" : "pause"}
-            </button>
             {reactLobby?.gameInfo.gameStarted ? (
-              <button onClick={endGameToggle}>
-                {reactLobby?.isEnding ? "cancel end game" : "end game"}
-              </button>
+              <div>
+                <button onClick={pauseToggle}>
+                  {reactLobby?.isPaused ? "resume" : "pause"}
+                </button>
+                <button onClick={endGameToggle}>
+                  {reactLobby?.isEnding ? "cancel end game" : "end game"}
+                </button>
+              </div>
             ) : (
               ""
             )}
@@ -658,7 +699,25 @@ export function Lobby() {
             ? lobbyInfoToString(reactLobby?.gameInfo)
             : ""}
         </div>
-        <ul></ul>
+        <div>
+          {reactLobby?.host == reactPlayerId?.inGameId ? (
+            <div>
+              <input type="number" id="approveId" placeholder="approve index" />
+              <button onClick={approve}>approve</button>
+            </div>
+          ) : (
+            ""
+          )}
+        </div>
+        <div>
+          {reactLobby?.seatRequests.map((seatRequest, index) => {
+            return (
+              <div key={index}>
+                {index + " " + seatRequestToString(seatRequest)}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
