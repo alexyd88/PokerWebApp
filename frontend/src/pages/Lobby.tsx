@@ -47,6 +47,7 @@ export function Lobby() {
   const [lastActionTime, setLastActionTime] = useState<number | null>(null);
   const [timer, setTimer] = useState<number | null>(null);
   const [hasSeatRequest, setHasSeatRequest] = useState<boolean>(false);
+  const [disconnected, setDisconnected] = useState<boolean>(false);
   let lobby: LobbyClient = createLobbyClient("LMAO DUMBASS");
   let playerId: PlayerId | null = null;
   if (lobbyId != null) lobby = createLobbyClient(lobbyId);
@@ -114,6 +115,9 @@ export function Lobby() {
   function approve() {
     handleButton("approve");
   }
+  function reload() {
+    handleButton("reload");
+  }
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
     playerId = JSON.parse(JSON.stringify(reactPlayerId));
@@ -124,6 +128,10 @@ export function Lobby() {
       return;
     }
     switch (button) {
+      case "reload": {
+        window.location.reload();
+        break;
+      }
       case "sayHi": {
         if (playerId != null && lobby != null) {
           const message: Message = createChat(playerId, lobbyId, "hi");
@@ -568,7 +576,7 @@ export function Lobby() {
     const socket = io("localhost:3002");
     socket.emit("joinLobby", lobbyId);
     if (lobbyId == undefined) return;
-    const pid = null; //localStorage.getItem(lobbyId);
+    const pid = localStorage.getItem(lobbyId);
     console.log("LOCAL", pid);
     if (pid != null) {
       replay(socket, false);
@@ -589,6 +597,10 @@ export function Lobby() {
     socket?.on("message", (message: Message) => {
       handleNewMessage(message);
     });
+    socket?.on("disconnect", async () => {
+      setDisconnected(true);
+      console.log("GET DISCONNECTED LOSER");
+    });
     setSocket(socket);
     setReactLobby(lobby);
   }, []);
@@ -603,7 +615,12 @@ export function Lobby() {
     return () => clearInterval(interval);
   }, [lastActionTime, timer]);
 
-  return (
+  return disconnected ? (
+    <div>
+      Disconnected, click here to reload{" "}
+      <button onClick={reload}>reload</button>
+    </div>
+  ) : (
     <div>
       {reactPlayerId != null
         ? "name: " +

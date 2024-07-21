@@ -494,11 +494,14 @@ io.on("connection", (socket) => {
   socket.on(
     "getPlayer",
     async (playerId: string, lobbyId: string, callback) => {
-      let lobby: Lobby = lobbies.get(lobbyId);
+      let lobby = lobbies.get(lobbyId);
       let oldPlayerId: PlayerId | null = null;
       for (let i = 0; i < lobby.players.length; i++)
         if (lobby.players[i].playerId.id == playerId)
           oldPlayerId = lobby.players[i].playerId;
+
+      io.in(lobby.socketList[oldPlayerId.inGameId]).disconnectSockets(true);
+      lobby.socketList[oldPlayerId.inGameId] = socket.id;
       callback({
         playerId: oldPlayerId,
       });
