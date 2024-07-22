@@ -74,31 +74,30 @@ function addMessage(message: Message) {
   lobby.messageList.push(prepareMessageForClient(lobby, message));
 }
 
-function addAndReturn(
-  message: Message,
-  location: string | null,
-  except: string | null,
-  wantAdd: boolean
-) {
+function addAndReturn(message: Message) {
   if (message.date == undefined) console.log(message);
   message.date = Date.now();
-  if (location == null) location = message.lobbyId;
-  if (wantAdd) addMessage(message);
-  else message.id = lobbies.get(message.lobbyId).messages.length;
-  if (except == null) {
-    io.in(location).emit(
-      "message",
-      prepareMessageForClient(lobbies.get(message.lobbyId), message)
-    );
-  } else {
-    io.in(location)
-      .except(except)
-      .emit(
-        "message",
-        prepareMessageForClient(lobbies.get(message.lobbyId), message)
-      );
+  let location = message.lobbyId;
+  addMessage(message);
+  let lobby = lobbies.get(message.lobbyId);
+  if (message.type == "showCards" && !message.public) {
+    let haveSentMessage = Array.apply(false, lobby.players.length);
+    for (let i = 0; i < message.cardsShown.length; i++) {
+      message.receiver = message.cardsShown[i].inGameId;
+      haveSentMessage[message.cardsShown[i].inGameId] = true;
+      io.in(location).emit("message", prepareMessageForClient(lobby, message));
+    }
+    message.receiver = -1;
+    for (let i = 0; i < lobby.players.length; i++) {
+      if (!haveSentMessage[i]) {
+        io.in(location).emit(
+          "message",
+          prepareMessageForClient(lobby, message)
+        );
+      }
+    }
+    return;
   }
-  console.log(message.type, "WILL SEND TO", location, "EXCEPT", except);
 }
 
 function createResetMessage(lobby: LobbyServer): Message {
@@ -115,46 +114,29 @@ function createResetMessage(lobby: LobbyServer): Message {
 
 function sendReset(lobby: LobbyServer) {
   resetHand(lobby, false, -1);
-  let cardMessage: Message = createResetMessage(lobby);
-  addAndReturn(cardMessage, null, null, true);
-  cardMessage = {
-    date: Date.now(),
-    playerId: null,
-    type: "showCards",
-    cardsShown: [
-      {
-        inGameId: 0,
-        card1: lobby.players[0].gameInfo.card1,
-        card2: lobby.players[0].gameInfo.card2,
-      },
-    ],
-    lobbyId: lobby.id,
-    id: -1,
-  };
+  let resetMessage: Message = createResetMessage(lobby);
+  addAndReturn(resetMessage);
+  const cardsShown: ShowCards[] = [];
   for (let i = 0; i < lobby.players.length; i++) {
-    if (lobby.players[i].gameInfo.inPot) {
-      cardMessage.cardsShown = [
-        {
-          inGameId: i,
-          card1: lobby.players[i].gameInfo.card1,
-          card2: lobby.players[i].gameInfo.card2,
-        },
-      ];
-      addAndReturn(
-        cardMessage,
-        lobby.socketList[lobby.players[i].playerId.inGameId],
-        null,
-        false
-      );
-      cardMessage.cardsShown = [];
-      addAndReturn(
-        cardMessage,
-        lobby.id,
-        lobby.socketList[lobby.players[i].playerId.inGameId],
-        true
-      );
+    if (lobby.players[i].gameInfo.startedInPot) {
+      cardsShown.push({
+        inGameId: i,
+        card1: lobby.players[i].gameInfo.card1,
+        card2: lobby.players[i].gameInfo.card2,
+      });
     }
   }
+  let cardMessage: Message = {
+    type: "showCards",
+    cardsShown: cardsShown,
+    date: Date.now(),
+    playerId: null,
+    lobbyId: lobby.id,
+    id: -1,
+    public: false,
+    receiver: -1,
+  };
+  addAndReturn(cardMessage);
   expectAction(lobby);
 }
 
@@ -167,7 +149,7 @@ function sendEndGame(lobby: Lobby) {
     lobbyId: lobby.id,
     id: -1,
   };
-  addAndReturn(endMessage, null, null, true);
+  addAndReturn(endMessage);
 }
 
 function sendEndHand(lobby: LobbyServer) {
@@ -188,8 +170,10 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
     lobbyId: lobby.id,
     id: -1,
     playerId: null,
+    public: true,
+    receiver: -1,
   };
-  addAndReturn(cardMessage, lobby.id, null, true);
+  addAndReturn(cardMessage);
 }
 
 //expects curplayer to be real player
@@ -215,7 +199,7 @@ function expectAction(lobby: LobbyServer) {
 }
 
 function sendCommunityCards(lobby: LobbyServer, message: Message) {
-  addAndReturn(message, lobby.id, null, true);
+  addAndReturn(message);
   expectAction(lobby);
 }
 
@@ -291,7 +275,7 @@ function handleAutoAction(lobby: Lobby) {
 }
 
 function handleMessage(message: Message) {
-  addAndReturn(message, null, null, true);
+  addAndReturn(message);
   const lobby = lobbies.get(message.lobbyId);
   switch (message.type) {
     case "chat": {
@@ -459,7 +443,7 @@ function handleMessage(message: Message) {
           lobbyId: message.lobbyId,
           id: -1,
         };
-        addAndReturn(showdownMessage, null, null, true);
+        addAndReturn(showdownMessage);
         clearTimeout(lobby.timeout);
         lobby.timeout = setTimeout(
           sendEndHand,
@@ -528,7 +512,7 @@ io.on("connection", (socket) => {
     } else {
       lobby.players.push(player);
       lobby.socketList.push(socket.id);
-      addAndReturn(message, null, null, true);
+      addAndReturn(message);
     }
 
     callback({
