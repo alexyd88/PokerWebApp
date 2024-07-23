@@ -71,7 +71,7 @@ function addMessage(message: Message) {
   message.id = lobby.messages.length;
   lobby.messages.push(message);
   console.log(messageToString(message));
-  lobby.messageList.push(prepareMessageForClient(lobby, message));
+  lobby.messageList.push(message);
 }
 
 function addAndReturn(message: Message) {
@@ -85,13 +85,22 @@ function addAndReturn(message: Message) {
     for (let i = 0; i < lobby.players.length; i++) haveSentMessage.push(false);
     for (let i = 0; i < message.cardsShown.length; i++) {
       message.receiver = message.cardsShown[i].inGameId;
-      haveSentMessage[message.cardsShown[i].inGameId] = true;
-      io.in(location).emit("message", prepareMessageForClient(lobby, message));
+      haveSentMessage[message.receiver] = true;
+      console.log(
+        "gonna send ",
+        message.cardsShown[i].card1,
+        "to " + message.receiver,
+        message.id
+      );
+      io.in(lobby.socketList[message.receiver]).emit(
+        "message",
+        prepareMessageForClient(lobby, message)
+      );
     }
     message.receiver = -1;
     for (let i = 0; i < lobby.players.length; i++) {
       if (!haveSentMessage[i]) {
-        io.in(location).emit(
+        io.in(lobby.socketList[i]).emit(
           "message",
           prepareMessageForClient(lobby, message)
         );
@@ -467,12 +476,27 @@ function handleMessage(message: Message) {
 
 io.on("connection", (socket) => {
   console.log("user connected", Date.now());
-  socket.on("getMessages", async (lobbyId: string, callback) => {
-    //console.log(lobbyId, messageLists.get(lobbyId));
-    callback({
-      messages: lobbies.get(lobbyId).messageList,
-    });
-  });
+  socket.on(
+    "getMessages",
+    async (lobbyId: string, playerId: string, callback) => {
+      //console.log(lobbyId, messageLists.get(lobbyId));
+      let newMessages = [];
+      let lobby = lobbies.get(lobbyId);
+      let messages = lobby.messageList;
+      let inGameId = -1;
+
+      for (let i = 0; i < lobby.players.length; i++)
+        if (playerId == lobby.players[i].playerId.id) inGameId = i;
+      for (let i = 0; i < messages.length; i++) {
+        let message = messages[i];
+        if (message.type == "showCards") message.receiver = inGameId;
+        newMessages.push(prepareMessageForClient(lobby, message));
+      }
+      callback({
+        messages: newMessages,
+      });
+    }
+  );
   socket.on("joinLobby", (room: string) => {
     console.log("socket joined:", room);
     socket.join(room);

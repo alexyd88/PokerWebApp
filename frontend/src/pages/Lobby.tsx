@@ -534,7 +534,11 @@ export function Lobby() {
     setTimer(TURN_TIME - (Date.now() - time));
   }
 
-  function replay(socket: Socket | null, wantAddPlayer: boolean) {
+  function replay(
+    socket: Socket | null,
+    wantAddPlayer: boolean,
+    playerId: string
+  ) {
     if (lobby == null) return;
     console.log("gonna replay");
     if (lobbyId == undefined) {
@@ -544,6 +548,7 @@ export function Lobby() {
     socket?.emit(
       "getMessages",
       lobbyId,
+      playerId,
       (response: { messages: Message[] }) => {
         lobby.messages = response.messages;
         for (let i = 0; i < response.messages.length; i++)
@@ -567,7 +572,7 @@ export function Lobby() {
     if (message.id != lobby.messages.length) {
       console.log("I MISSED A MESSAGE");
       console.log(lobby.messages);
-      replay(socket, false);
+      replay(socket, false, playerId == null ? "" : playerId.id);
     } else {
       handleMessage(message);
     }
@@ -582,7 +587,7 @@ export function Lobby() {
     const pid = localStorage.getItem(lobbyId);
     console.log("LOCAL", pid);
     if (pid != null) {
-      replay(socket, false);
+      replay(socket, false, pid);
       socket.emit(
         "getPlayer",
         pid,
@@ -594,7 +599,7 @@ export function Lobby() {
         }
       );
     } else {
-      replay(socket, true);
+      replay(socket, true, "");
     }
     console.log(new Date());
     socket?.on("message", (message: Message) => {
@@ -626,7 +631,9 @@ export function Lobby() {
   ) : (
     <div>
       {reactPlayerId != null
-        ? "name: " +
+        ? "id: " +
+          reactPlayerId.id +
+          "name: " +
           reactPlayerId.name +
           " seat: " +
           reactLobby?.players[reactPlayerId.inGameId].gameInfo.seat +
