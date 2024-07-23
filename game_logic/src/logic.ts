@@ -344,7 +344,6 @@ export function takeFromPot(
 }
 
 export function endGame(lobby: Lobby) {
-  endHand(lobby);
   lobby.state = "nothing";
   lobby.gameInfo.gameStarted = false;
 }
@@ -355,7 +354,7 @@ export function isLeaving(player: PlayerGameInfo): boolean {
 
 export function isLeavingString(player: PlayerGameInfo): string {
   if (player.kicking) {
-    return "kicked";
+    return "getting kicked";
   }
   if (player.leaving) {
     return "leaving";
@@ -414,10 +413,13 @@ export function endHand(lobby: Lobby) {
     for (let j = 0; j < SEATS_NUMBER; j++) if (lobby.seats[j] == i) seat = j;
     if (seat == -1) player.inPot = false;
     if (player.stack == 0) player.leaving = true;
+
+    if (player.timeoutCount >= 2) player.away = true;
+
     if (isLeaving(player) && seat != -1) {
       leaveSeat(lobby, i);
     }
-    player.inPot = !isLeaving(player);
+    player.inPot = !isLeaving(player) && !player.away;
     player.startedInPot = player.inPot;
     if (player.inPot) lobby.gameInfo.numInPot++;
   }
@@ -428,7 +430,6 @@ export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
   lobby.gameInfo.gameStarted = true;
   let players: Player[] = lobby.players;
   let lg = lobby.gameInfo;
-  endHand(lobby);
   if (lg.numInPot < 2) {
     endGame(lobby);
     return;

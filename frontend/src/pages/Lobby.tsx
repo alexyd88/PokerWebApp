@@ -36,6 +36,7 @@ import {
   seatRequestToString,
   cancelSitRequest,
   getLedgerEntry,
+  endHand,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -331,7 +332,8 @@ export function Lobby() {
           playerId,
           button,
           button == "raise" ? Number(amt.value) : 0,
-          lobbyId
+          lobbyId,
+          false
         );
         const error: string = getErrorFromAction(lobby, message);
         if (error != "success") {
@@ -444,12 +446,14 @@ export function Lobby() {
         break;
       }
       case "reset": {
+        endHand(lobby);
         resetHand(lobby, true, message.dealerChip);
         lobby.canShowHoleCards = true;
         updateIsWaiting(message.date);
         break;
       }
       case "end": {
+        endHand(lobby);
         endGame(lobby);
         break;
       }

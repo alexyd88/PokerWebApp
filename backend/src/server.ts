@@ -164,6 +164,7 @@ function sendEndGame(lobby: Lobby) {
 }
 
 function sendEndHand(lobby: LobbyServer) {
+  endHand(lobby);
   if (lobby.isEnding || getNumInPot(lobby) < 2) {
     sendEndGame(lobby);
     console.log("SENT END GAME");
@@ -223,7 +224,8 @@ function getAutoAction(lobby: Lobby, player: Player): Message {
     player.playerId,
     "check",
     0,
-    lobby.id
+    lobby.id,
+    true
   );
   if (message.type != "action") {
     console.log("WTF");
@@ -413,7 +415,6 @@ function handleMessage(message: Message) {
         return;
       }
       const actionResult: ActionResult = runAction(lobby, message, false);
-
       if (actionResult == null) {
         console.log("WHAT THE FUCK");
         return;

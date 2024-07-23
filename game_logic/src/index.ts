@@ -35,6 +35,7 @@ type MessageAction = {
   type: "action";
   action: string;
   content: number;
+  auto: boolean;
 };
 
 type MessageNewCommunityCards = {
@@ -73,7 +74,8 @@ export function createMessageAction(
   playerId: PlayerId,
   action: string,
   content: number,
-  lobbyId: string
+  lobbyId: string,
+  auto: boolean
 ): Message {
   return {
     date: Date.now(),
@@ -83,6 +85,7 @@ export function createMessageAction(
     type: "action",
     action: action,
     content: content,
+    auto: auto,
   };
 }
 
@@ -388,23 +391,6 @@ export function createChat(
   };
 }
 
-export function createAction(
-  playerId: PlayerId,
-  lobbyId: string,
-  action: string,
-  content: number
-): Message {
-  return {
-    date: Date.now(),
-    type: "action",
-    id: -1,
-    action: action,
-    content: content,
-    playerId: playerId,
-    lobbyId: lobbyId,
-  };
-}
-
 type stateTypes = "waitingForAction" | "dealing" | "showdown" | "nothing";
 
 export interface LobbyGameInfo {
@@ -543,6 +529,7 @@ export interface PlayerGameInfo {
   changeChips: ChangeChips;
   buyIn: number;
   buyOut: number;
+  timeoutCount: number; //number of consecutive timeouts
   //net is stack - buyIn + buyOut
 }
 
@@ -624,6 +611,7 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     leaving: false,
     seat: -1,
     changeChips: { modifier: "add", amount: 0 },
+    timeoutCount: 0,
   };
 }
 
@@ -773,7 +761,8 @@ export function runAction(
 
     //console.log(lobby.players, lobby.seats, lg.curPlayer);
   }
-
+  if (message.auto) curPlayer.timeoutCount++;
+  else curPlayer.timeoutCount = 0;
   switch (message.action) {
     case "start": {
       lobby.isEnding = false;
