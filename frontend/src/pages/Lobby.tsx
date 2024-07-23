@@ -354,6 +354,7 @@ export function Lobby() {
         console.log("how the fuck");
       }
       if (response.err) {
+        console.log("COULDN'T");
         message.playerId.inGameId++;
         emitRetryAddPlayer(socket, message);
       } else {
@@ -367,6 +368,8 @@ export function Lobby() {
           name: "GUEST",
         };
         setPlayerId(playerId);
+        console.log("MY PID", playerId);
+        console.log("MY LOBBY", lobby);
         localStorage.setItem(lobbyId, id);
         console.log("LOCALSET", lobbyId, id);
       }

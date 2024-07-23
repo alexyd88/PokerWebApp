@@ -81,7 +81,8 @@ function addAndReturn(message: Message) {
   addMessage(message);
   let lobby = lobbies.get(message.lobbyId);
   if (message.type == "showCards" && !message.public) {
-    let haveSentMessage = Array.apply(false, lobby.players.length);
+    let haveSentMessage: boolean[] = [];
+    for (let i = 0; i < lobby.players.length; i++) haveSentMessage.push(false);
     for (let i = 0; i < message.cardsShown.length; i++) {
       message.receiver = message.cardsShown[i].inGameId;
       haveSentMessage[message.cardsShown[i].inGameId] = true;
@@ -98,6 +99,7 @@ function addAndReturn(message: Message) {
     }
     return;
   }
+  io.in(location).emit("message", prepareMessageForClient(lobby, message));
 }
 
 function createResetMessage(lobby: LobbyServer): Message {
