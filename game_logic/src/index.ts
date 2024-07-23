@@ -55,6 +55,8 @@ export type ShowCards = {
 type MessageShowCards = {
   type: "showCards";
   cardsShown: ShowCards[];
+  public: boolean;
+  receiver: number;
 };
 
 type MessageReset = {
@@ -209,7 +211,20 @@ export function prepareMessageForClient(
 ): Message {
   const newMessage: Message = JSON.parse(JSON.stringify(message));
   //console.log("lobby", lobby);
-  if (newMessage.playerId == null) return newMessage;
+
+  if (newMessage.playerId == null && newMessage.type != "showCards")
+    return newMessage;
+
+  if (newMessage.type == "showCards") {
+    if (newMessage.public) return newMessage;
+    let newCardsShown: ShowCards[] = [];
+    for (let i = 0; i < newMessage.cardsShown.length; i++)
+      if (newMessage.cardsShown[i].inGameId == newMessage.receiver)
+        newCardsShown = [newMessage.cardsShown[i]];
+    newMessage.cardsShown = newCardsShown;
+    return newMessage;
+  }
+
   if (
     lobby.players[newMessage.playerId.inGameId].playerId.id !=
     newMessage.playerId.id
