@@ -440,7 +440,8 @@ export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
     lg.dealerChip = dealerChip;
   }
   lg.board.length = 0;
-  const sb = findNext(lobby, lg.dealerChip);
+  let sb = findNext(lobby, lg.dealerChip);
+  if (lg.numInPot == 2) sb = lg.dealerChip;
   raise(
     players[lobby.seats[sb]].gameInfo,
     lg,
