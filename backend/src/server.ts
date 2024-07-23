@@ -482,6 +482,14 @@ io.on("connection", (socket) => {
     async (lobbyId: string, playerId: string, callback) => {
       //console.log(lobbyId, messageLists.get(lobbyId));
       let newMessages = [];
+      if (!lobbies.has(lobbyId)) {
+        console.log("LOBBY DOESN'T EXIST");
+        callback({
+          messages: newMessages,
+          exists: false,
+        });
+        return;
+      }
       let lobby = lobbies.get(lobbyId);
       let messages = lobby.messageList;
       let inGameId = -1;
@@ -495,6 +503,7 @@ io.on("connection", (socket) => {
       }
       callback({
         messages: newMessages,
+        exists: true,
       });
     }
   );

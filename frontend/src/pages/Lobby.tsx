@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import type {
   Lobby,
@@ -51,6 +51,7 @@ export function Lobby() {
   const [disconnected, setDisconnected] = useState<boolean>(false);
   let lobby: LobbyClient = createLobbyClient("LMAO DUMBASS");
   let playerId: PlayerId | null = null;
+  const navigate = useNavigate();
   if (lobbyId != null) lobby = createLobbyClient(lobbyId);
   function displayWarning(warning: string) {
     const illegalWarning = document.getElementById("illegal");
@@ -553,8 +554,12 @@ export function Lobby() {
       "getMessages",
       lobbyId,
       playerId,
-      (response: { messages: Message[] }) => {
+      (response: { messages: Message[]; exists: boolean }) => {
         lobby.messages = response.messages;
+        if (!response.exists) {
+          console.log("WHY NOT EXIST?", lobby.messages);
+          navigate("/");
+        }
         for (let i = 0; i < response.messages.length; i++)
           handleMessage(response.messages[i]);
         if (wantAddPlayer) {
