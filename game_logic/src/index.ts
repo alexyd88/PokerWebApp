@@ -22,15 +22,15 @@ export * from "./handEval";
 export * from "./constants";
 
 const messageCommon = z.object({
-  id: z.number(),
+  id: z.number().int(),
   lobbyId: z.string(),
-  date: z.number(),
+  date: z.number().int(),
 });
 
 const playerIdSchema = z.object({
   playerId: z.object({
     id: z.string(),
-    inGameId: z.number(),
+    inGameId: z.number().int(),
     name: z.string(),
   }),
 });
@@ -42,13 +42,13 @@ const messageCommonWithoutPlayerIdSchema = z
 const messageCommonWithPlayerIdSchema = playerIdSchema.merge(messageCommon);
 
 const cardSchema = z.object({
-  num: z.number(),
+  num: z.number().int(),
   suit: z.string(),
   numDisplay: z.string(),
 });
 
 const showCardsSchema = z.object({
-  inGameId: z.number(),
+  inGameId: z.number().int(),
   card1: cardSchema,
   card2: cardSchema,
 });
@@ -63,7 +63,7 @@ const chipsModifierSchema = z.union([
 
 const changeChipsSchema = z.object({
   modifier: chipsModifierSchema,
-  amount: z.number(),
+  amount: z.number().int(),
 });
 
 export const messageSchema = z.discriminatedUnion("type", [
@@ -74,7 +74,7 @@ export const messageSchema = z.discriminatedUnion("type", [
     .object({
       type: z.literal("action"),
       action: z.string(),
-      content: z.number(),
+      content: z.number().int(),
       auto: z.boolean(),
     })
     .merge(messageCommonWithPlayerIdSchema),
@@ -92,14 +92,14 @@ export const messageSchema = z.discriminatedUnion("type", [
       type: z.literal("showCards"),
       cardsShown: z.array(showCardsSchema),
       public: z.boolean(),
-      receiver: z.number(),
+      receiver: z.number().int(),
     })
     .merge(messageCommonWithoutPlayerIdSchema),
   z
-    .object({ type: z.literal("reset"), dealerChip: z.number() })
+    .object({ type: z.literal("reset"), dealerChip: z.number().int() })
     .merge(messageCommonWithoutPlayerIdSchema),
   z
-    .object({ type: z.literal("setHost"), inGameId: z.number() })
+    .object({ type: z.literal("setHost"), inGameId: z.number().int() })
     .merge(messageCommonWithPlayerIdSchema),
   z
     .object({ type: z.literal("addPlayer") })
@@ -108,15 +108,18 @@ export const messageSchema = z.discriminatedUnion("type", [
     .object({
       type: z.literal("sitRequest"),
       name: z.string(),
-      seat: z.number(),
-      chips: z.number(),
+      seat: z.number().int(),
+      chips: z.number().int(),
     })
     .merge(messageCommonWithPlayerIdSchema),
   z
     .object({ type: z.literal("cancelSitRequest") })
     .merge(messageCommonWithPlayerIdSchema),
   z
-    .object({ type: z.literal("approveSitRequest"), requestId: z.number() })
+    .object({
+      type: z.literal("approveSitRequest"),
+      requestId: z.number().int(),
+    })
     .merge(messageCommonWithPlayerIdSchema),
   z
     .object({ type: z.literal("start") })
@@ -134,18 +137,18 @@ export const messageSchema = z.discriminatedUnion("type", [
     .object({ type: z.literal("end") })
     .merge(messageCommonWithoutPlayerIdSchema),
   z
-    .object({ type: z.literal("awayToggle"), inGameId: z.number() })
+    .object({ type: z.literal("awayToggle"), inGameId: z.number().int() })
     .merge(messageCommonWithPlayerIdSchema),
   z
-    .object({ type: z.literal("leavingToggle"), inGameId: z.number() })
+    .object({ type: z.literal("leavingToggle"), inGameId: z.number().int() })
     .merge(messageCommonWithPlayerIdSchema),
   z
-    .object({ type: z.literal("kickingToggle"), inGameId: z.number() })
+    .object({ type: z.literal("kickingToggle"), inGameId: z.number().int() })
     .merge(messageCommonWithPlayerIdSchema),
   z
     .object({
       type: z.literal("changeChips"),
-      inGameId: z.number(),
+      inGameId: z.number().int(),
       changeChips: changeChipsSchema,
     })
     .merge(messageCommonWithPlayerIdSchema),
@@ -163,15 +166,38 @@ export function validateMessage(
   if (lobby == undefined) return false;
   let result = messageSchema.safeParse(message);
   if (!result.success) {
-    console.log("EW HACKER NICE TRY");
+    console.log("EW HACKER NICE TRY FAKE MESSAGE");
     return false;
   }
   if (message.playerId == null) return true;
   if (
-    message.playerId.inGameId >= lobby.players.length ||
+    !(message.playerId.inGameId in lobby.players) ||
     lobby.players[message.playerId.inGameId].playerId.id != message.playerId.id
-  )
+  ) {
+    console.log("WRONG PLAYER ID HACKER");
     return false;
+  }
+  if (message.type == "sitRequest" && !(message.seat in lobby.seats)) {
+    console.log("WHERE IS BLUD SITTING?");
+    return false;
+  }
+  if (
+    message.type == "approveSitRequest" &&
+    !(message.requestId in lobby.seatRequests)
+  ) {
+    console.log("WHAT ARE U APPROVING?");
+    return false;
+  }
+  if (
+    (message.type == "awayToggle" ||
+      message.type == "leavingToggle" ||
+      message.type == "kickingToggle" ||
+      message.type == "changeChips") &&
+    !(message.inGameId in lobby.players)
+  ) {
+    console.log("WHO IS THIS GUY BRO");
+    return false;
+  }
   return true;
 }
 

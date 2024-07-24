@@ -569,7 +569,10 @@ io.on("connection", (socket) => {
   );
 
   socket.on("message", (message: Message) => {
-    if (!validateMessage(message, lobbies)) return;
+    if (!validateMessage(message, lobbies)) {
+      console.log("DUMBASS HACKER LMFAO");
+      return;
+    }
     message.date = Date.now();
     //if (!isValidMessage(message, lobbies.get(message.lobbyId))) return;
     handleMessage(message);

@@ -133,8 +133,17 @@ export function Lobby() {
       }
       case "sayHi": {
         if (playerId != null && lobby != null) {
-          //const message: Message = createChat(playerId, lobbyId, "hi");
-          socket?.emit("message", "WSG");
+          const message: Message = {
+            playerId: playerId,
+            lobbyId: lobbyId,
+            date: Date.now(),
+            id: -1,
+            type: "sitRequest",
+            name: "YO",
+            seat: 10,
+            chips: -1,
+          };
+          socket?.emit("message", message);
         }
         break;
       }
