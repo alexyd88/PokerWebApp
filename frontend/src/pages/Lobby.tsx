@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 import type {
   Lobby,
   LobbyClient,
@@ -13,7 +14,6 @@ import {
   validateSeat,
   addExistingPlayer,
   messageToString,
-  createPlayerId,
   createMessageAction,
   runAction,
   getErrorFromAction,
@@ -347,37 +347,43 @@ export function Lobby() {
     setPlayerId(playerId);
   }
 
-  function emitRetryAddPlayer(socket: Socket, message: Message) {
-    if (message.playerId == null) {
-      console.log("SKDJV");
-      return;
-    }
-    const id: string = message.playerId.id;
-    socket.emit("addPlayer", message, (response: { err: boolean }) => {
-      if (response == null) {
-        console.log("how the fuck");
-      }
-      if (response.err) {
-        console.log("COULDN'T");
-        message.playerId.inGameId++;
-        emitRetryAddPlayer(socket, message);
-      } else {
-        if (lobbyId == null) {
-          console.log("TROLL");
-          return;
+  function emitRetryAddPlayer(
+    socket: Socket,
+    lobbyId: string,
+    inGameId: number,
+    uuid: string
+  ) {
+    socket.emit(
+      "addPlayer",
+      lobbyId,
+      inGameId,
+      uuid,
+      (response: { err: boolean }) => {
+        if (response == null) {
+          console.log("how the fuck");
         }
-        playerId = {
-          id: id,
-          inGameId: message.playerId.inGameId,
-          name: "GUEST",
-        };
-        setPlayerId(playerId);
-        console.log("MY PID", playerId);
-        console.log("MY LOBBY", lobby);
-        localStorage.setItem(lobbyId, id);
-        console.log("LOCALSET", lobbyId, id);
+        if (response.err) {
+          console.log("COULDN'T");
+          inGameId++;
+          emitRetryAddPlayer(socket, lobbyId, inGameId, uuid);
+        } else {
+          if (lobbyId == null) {
+            console.log("TROLL");
+            return;
+          }
+          playerId = {
+            id: uuid,
+            inGameId: inGameId,
+            name: "GUEST",
+          };
+          setPlayerId(playerId);
+          console.log("MY PID", playerId);
+          console.log("MY LOBBY", lobby);
+          localStorage.setItem(lobbyId, uuid);
+          console.log("LOCALSET", lobbyId, uuid);
+        }
       }
-    });
+    );
   }
 
   function handleMessage(message: Message) {
@@ -560,14 +566,7 @@ export function Lobby() {
         for (let i = 0; i < response.messages.length; i++)
           handleMessage(response.messages[i]);
         if (wantAddPlayer) {
-          const message: Message = {
-            date: Date.now(),
-            lobbyId: lobbyId,
-            type: "addPlayer",
-            id: -1,
-            playerId: createPlayerId(lobby, "GUEST", null),
-          };
-          emitRetryAddPlayer(socket, message);
+          emitRetryAddPlayer(socket, lobbyId, lobby.players.length, uuidv4());
         }
       }
     );

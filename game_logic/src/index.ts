@@ -153,12 +153,25 @@ export const messageSchema = z.discriminatedUnion("type", [
 
 export type Message = z.infer<typeof messageSchema>;
 
-export function validateMessage(message: Message): boolean {
+export function validateMessage(
+  message: Message,
+  lobbies: Map<string, LobbyServer>
+): boolean {
+  const lobbyId = message.lobbyId;
+  if (!lobbies.has(lobbyId)) return false;
+  const lobby = lobbies.get(lobbyId);
+  if (lobby == undefined) return false;
   let result = messageSchema.safeParse(message);
   if (!result.success) {
     console.log("EW HACKER NICE TRY");
     return false;
   }
+  if (message.playerId == null) return true;
+  if (
+    message.playerId.inGameId >= lobby.players.length ||
+    lobby.players[message.playerId.inGameId].playerId.id != message.playerId.id
+  )
+    return false;
   return true;
 }
 
