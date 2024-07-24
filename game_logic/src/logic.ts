@@ -13,11 +13,13 @@ import {
   SEATS_NUMBER,
   ShowCards,
 } from "./index";
+let MersenneTwister = require("mersenne-twister");
 
 export function getRandInt(min: number, max: number) {
+  let gen = new MersenneTwister();
   const minCeil = Math.ceil(min);
   const maxFloor = Math.floor(max);
-  return Math.floor(Math.random() * (maxFloor - minCeil) + minCeil);
+  return Math.floor(gen.random() * (maxFloor - minCeil) + minCeil);
 }
 
 export function createCard(num: number, suit: string): Card {
