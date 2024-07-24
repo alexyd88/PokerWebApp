@@ -1,5 +1,6 @@
 import { Socket } from "socket.io";
 import { compareHands, findBestHand, getStrength } from "./handEval";
+let MersenneTwister = require("mersenne-twister");
 import {
   ActionResult,
   Card,
@@ -15,9 +16,10 @@ import {
 } from "./index";
 
 export function getRandInt(min: number, max: number) {
+  let gen = new MersenneTwister();
   const minCeil = Math.ceil(min);
   const maxFloor = Math.floor(max);
-  return Math.floor(Math.random() * (maxFloor - minCeil) + minCeil);
+  return Math.floor(gen.random() * (maxFloor - minCeil) + minCeil);
 }
 
 export function createCard(num: number, suit: string): Card {

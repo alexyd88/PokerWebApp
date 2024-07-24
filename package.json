@@ -4,6 +4,11 @@
     "dev": "npm run build && concurrently \"npm start --prefix backend\" \"npm run dev --prefix frontend\""
   },
   "devDependencies": {
+    "@types/mersenne-twister": "^1.1.7",
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "mersenne-twister": "^1.1.0",
+    "zod": "^3.23.8"
   }
 }
