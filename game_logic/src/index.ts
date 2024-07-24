@@ -15,60 +15,191 @@ import {
 import { strengthToString } from "./handEval";
 import { Socket } from "socket.io";
 import { SEATS_NUMBER } from "./constants";
+import { z } from "zod";
 
 export * from "./logic";
 export * from "./handEval";
 export * from "./constants";
 
-type MessageCommon = {
-  id: number;
-  lobbyId: string;
-  date: number;
-};
+const messageCommon = z.object({
+  id: z.number().int(),
+  lobbyId: z.string(),
+  date: z.number().int(),
+});
 
-type MessageChat = {
-  type: "chat";
-  text: string;
-};
+const playerIdSchema = z.object({
+  playerId: z.object({
+    id: z.string(),
+    inGameId: z.number().int(),
+    name: z.string(),
+  }),
+});
 
-type MessageAction = {
-  type: "action";
-  action: string;
-  content: number;
-  auto: boolean;
-};
+const messageCommonWithoutPlayerIdSchema = z
+  .object({ playerId: z.null() })
+  .merge(messageCommon);
 
-type MessageNewCommunityCards = {
-  type: "newCommunityCards";
-  cards: Card[];
-};
+const messageCommonWithPlayerIdSchema = playerIdSchema.merge(messageCommon);
 
-type MessageShowdown = {
-  type: "showdown";
-};
+const cardSchema = z.object({
+  num: z.number().int(),
+  suit: z.string(),
+  numDisplay: z.string(),
+});
 
-export type ShowCards = {
-  inGameId: number;
-  card1: Card;
-  card2: Card;
-};
+const showCardsSchema = z.object({
+  inGameId: z.number().int(),
+  card1: cardSchema,
+  card2: cardSchema,
+});
 
-type MessageShowCards = {
-  type: "showCards";
-  cardsShown: ShowCards[];
-  public: boolean;
-  receiver: number;
-};
+export type ShowCards = z.infer<typeof showCardsSchema>;
 
-type MessageReset = {
-  type: "reset";
-  dealerChip: number;
-};
+const chipsModifierSchema = z.union([
+  z.literal("add"),
+  z.literal("remove"),
+  z.literal("set"),
+]);
 
-type MessageSetHost = {
-  type: "setHost";
-  inGameId: number;
-};
+const changeChipsSchema = z.object({
+  modifier: chipsModifierSchema,
+  amount: z.number().int(),
+});
+
+export const messageSchema = z.discriminatedUnion("type", [
+  z
+    .object({ type: z.literal("chat"), text: z.string() })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({
+      type: z.literal("action"),
+      action: z.string(),
+      content: z.number().int(),
+      auto: z.boolean(),
+    })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({
+      type: z.literal("newCommunityCards"),
+      cards: z.array(cardSchema),
+    })
+    .merge(messageCommonWithoutPlayerIdSchema),
+  z
+    .object({ type: z.literal("showdown") })
+    .merge(messageCommonWithoutPlayerIdSchema),
+  z
+    .object({
+      type: z.literal("showCards"),
+      cardsShown: z.array(showCardsSchema),
+      public: z.boolean(),
+      receiver: z.number().int(),
+    })
+    .merge(messageCommonWithoutPlayerIdSchema),
+  z
+    .object({ type: z.literal("reset"), dealerChip: z.number().int() })
+    .merge(messageCommonWithoutPlayerIdSchema),
+  z
+    .object({ type: z.literal("setHost"), inGameId: z.number().int() })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("addPlayer") })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({
+      type: z.literal("sitRequest"),
+      name: z.string(),
+      seat: z.number().int(),
+      chips: z.number().int(),
+    })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("cancelSitRequest") })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({
+      type: z.literal("approveSitRequest"),
+      requestId: z.number().int(),
+    })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("start") })
+    .merge(messageCommonWithoutPlayerIdSchema),
+  z
+    .object({ type: z.literal("pauseToggle") })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("showMyCards") })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("endGameToggle") })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("end") })
+    .merge(messageCommonWithoutPlayerIdSchema),
+  z
+    .object({ type: z.literal("awayToggle"), inGameId: z.number().int() })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("leavingToggle"), inGameId: z.number().int() })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("kickingToggle"), inGameId: z.number().int() })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({
+      type: z.literal("changeChips"),
+      inGameId: z.number().int(),
+      changeChips: changeChipsSchema,
+    })
+    .merge(messageCommonWithPlayerIdSchema),
+]);
+
+export type Message = z.infer<typeof messageSchema>;
+
+export function validateMessage(
+  message: Message,
+  lobbies: Map<string, LobbyServer>
+): boolean {
+  const lobbyId = message.lobbyId;
+  if (!lobbies.has(lobbyId)) return false;
+  const lobby = lobbies.get(lobbyId);
+  if (lobby == undefined) return false;
+  let result = messageSchema.safeParse(message);
+  if (!result.success) {
+    console.log("EW HACKER NICE TRY FAKE MESSAGE");
+    return false;
+  }
+  if (message.playerId == null) return true;
+  if (
+    !(message.playerId.inGameId in lobby.players) ||
+    lobby.players[message.playerId.inGameId].playerId.id != message.playerId.id
+  ) {
+    console.log("WRONG PLAYER ID HACKER");
+    return false;
+  }
+  if (message.type == "sitRequest" && !(message.seat in lobby.seats)) {
+    console.log("WHERE IS BLUD SITTING?");
+    return false;
+  }
+  if (
+    message.type == "approveSitRequest" &&
+    !(message.requestId in lobby.seatRequests)
+  ) {
+    console.log("WHAT ARE U APPROVING?");
+    return false;
+  }
+  if (
+    (message.type == "awayToggle" ||
+      message.type == "leavingToggle" ||
+      message.type == "kickingToggle" ||
+      message.type == "changeChips") &&
+    !(message.inGameId in lobby.players)
+  ) {
+    console.log("WHO IS THIS GUY BRO");
+    return false;
+  }
+  return true;
+}
 
 export function createMessageAction(
   playerId: PlayerId,
@@ -89,101 +220,6 @@ export function createMessageAction(
   };
 }
 
-type MessageAddPlayer = {
-  type: "addPlayer";
-};
-
-type MessageSetPlayer = {
-  type: "setPlayerName";
-};
-
-type MessageSitRequest = {
-  type: "sitRequest";
-  name: string;
-  seat: number;
-  chips: number;
-};
-
-type MessageCancelSitRequest = {
-  type: "cancelSitRequest";
-};
-
-type MessageApproveSitRequest = {
-  type: "approveSitRequest";
-  requestId: number;
-};
-
-type MessageStart = {
-  type: "start";
-};
-
-type MessagePauseToggle = {
-  type: "pauseToggle";
-};
-
-type MessageShowMyCards = {
-  type: "showMyCards";
-};
-
-type MessageEndGameToggle = {
-  type: "endGameToggle";
-};
-
-type MessageEndGame = {
-  type: "end";
-};
-
-type MessageAwayToggle = {
-  type: "awayToggle";
-  inGameId: number; //host might send diff person's ingameid
-};
-
-type MessageLeavingToggle = {
-  type: "leavingToggle";
-  inGameId: number;
-};
-
-type MessageKickingToggle = {
-  type: "kickingToggle";
-  inGameId: number;
-};
-
-type MessageChangeChips = {
-  type: "changeChips";
-  inGameId: number;
-  changeChips: ChangeChips;
-};
-
-export type MessageWithPlayerId = { playerId: PlayerId } & (
-  | MessageAction
-  | MessageChat
-  | MessageAddPlayer
-  | MessageSetPlayer
-  | MessageSitRequest
-  | MessagePauseToggle
-  | MessageShowMyCards
-  | MessageEndGameToggle
-  | MessageAwayToggle
-  | MessageSetHost
-  | MessageLeavingToggle
-  | MessageKickingToggle
-  | MessageChangeChips
-  | MessageApproveSitRequest
-  | MessageCancelSitRequest
-);
-
-export type MessageWithoutPlayerId = { playerId: null } & (
-  | MessageStart
-  | MessageNewCommunityCards
-  | MessageShowCards
-  | MessageReset
-  | MessageShowdown
-  | MessageEndGame
-);
-
-export type Message = MessageCommon &
-  (MessageWithoutPlayerId | MessageWithPlayerId);
-
 export function cardsToString(cards: Card[]): string {
   let s: string = "";
   for (let i = 0; i < cards.length; i++)
@@ -192,9 +228,6 @@ export function cardsToString(cards: Card[]): string {
 }
 
 export function messageToString(message: Message): string {
-  if (message.playerId == null) {
-    return message.id + ": server sent: " + message.type;
-  }
   let x: string =
     message.id +
     ": " +

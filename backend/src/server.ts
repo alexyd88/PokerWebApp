@@ -19,9 +19,10 @@ import type {
 } from "game_logic";
 import {
   approveSitRequest,
+  messageSchema,
   cancelSitRequest,
   createChat,
-  createMessageAction,
+  validateMessage,
   createPlayerGameInfo,
   createPlayerId,
   endGame,
@@ -29,6 +30,7 @@ import {
   getErrorFromAction,
   getNumInPot,
   getRandSeat,
+  createMessageAction,
   isLeaving,
   leaveSeat,
   messageToString,
@@ -44,6 +46,7 @@ import {
   TURN_TIME,
   updateChips,
 } from "game_logic";
+import { z } from "zod";
 import { lobbies } from "./controllers/lobbies";
 import { send } from "node:process";
 
@@ -295,10 +298,6 @@ function handleMessage(message: Message) {
       //nothing special
       break;
     }
-    case "setPlayerName": {
-      setPlayerNameServer(lobby, message.playerId);
-      break;
-    }
     case "sitRequest": {
       sitRequest(
         lobby,
@@ -514,12 +513,19 @@ io.on("connection", (socket) => {
   socket.on(
     "getPlayer",
     async (playerId: string, lobbyId: string, callback) => {
+      if (!lobbies.has(lobbyId)) {
+        console.log("how was lobby not created yet");
+        return;
+      }
       let lobby = lobbies.get(lobbyId);
       let oldPlayerId: PlayerId | null = null;
       for (let i = 0; i < lobby.players.length; i++)
         if (lobby.players[i].playerId.id == playerId)
           oldPlayerId = lobby.players[i].playerId;
-
+      if (oldPlayerId == null) {
+        console.log("U LIED BRO THIS PERSON ISN'T REAL");
+        return;
+      }
       io.in(lobby.socketList[oldPlayerId.inGameId]).disconnectSockets(true);
       lobby.socketList[oldPlayerId.inGameId] = socket.id;
       callback({
@@ -527,37 +533,48 @@ io.on("connection", (socket) => {
       });
     }
   );
-  socket.on("addPlayer", async (message: Message, callback) => {
-    if (message.type != "addPlayer") {
-      console.log("how did u get here bro");
-      return;
-    }
-    if (!lobbies.has(message.lobbyId)) {
-      console.log("how was lobby not created yet");
-      return;
-    }
-    const lobby = lobbies.get(message.lobbyId);
-    let player: Player = {
-      playerId: createPlayerId(lobby, "GUEST", message.playerId.id),
-      gameInfo: createPlayerGameInfo(),
-    };
-    let err: boolean = false;
-    if (lobby.players.length != message.playerId.inGameId) {
-      console.log("RACE CONDITION OMG");
-      err = true;
-    } else {
-      lobby.players.push(player);
-      lobby.socketList.push(socket.id);
-      addAndReturn(message);
-    }
+  socket.on(
+    "addPlayer",
+    async (lobbyId: string, inGameId: number, id: string, callback) => {
+      if (!lobbies.has(lobbyId)) {
+        console.log("how was lobby not created yet");
+        return;
+      }
+      const lobby = lobbies.get(lobbyId);
+      let player: Player = {
+        playerId: createPlayerId(lobby, "GUEST", id),
+        gameInfo: createPlayerGameInfo(),
+      };
+      let err: boolean = false;
+      if (lobby.players.length != inGameId) {
+        console.log("RACE CONDITION OMG");
+        err = true;
+      } else {
+        lobby.players.push(player);
+        lobby.socketList.push(socket.id);
+        let message: Message = {
+          type: "addPlayer",
+          id: -1,
+          lobbyId: lobbyId,
+          playerId: { inGameId: inGameId, id: id, name: "GUEST" },
+          date: Date.now(),
+        };
+        addAndReturn(message);
+      }
 
-    callback({
-      err: err,
-    });
-  });
+      callback({
+        err: err,
+      });
+    }
+  );
 
   socket.on("message", (message: Message) => {
+    if (!validateMessage(message, lobbies)) {
+      console.log("DUMBASS HACKER LMFAO");
+      return;
+    }
     message.date = Date.now();
+    //if (!isValidMessage(message, lobbies.get(message.lobbyId))) return;
     handleMessage(message);
   });
 });
