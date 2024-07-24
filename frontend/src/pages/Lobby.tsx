@@ -4,19 +4,16 @@ import type {
   Lobby,
   LobbyClient,
   Message,
-  MessageWithPlayerId,
   PlayerId,
   ShowCards,
 } from "game_logic";
 import {
   playerGameInfoToString,
   createLobbyClient,
-  createChat,
   validateSeat,
   addExistingPlayer,
   messageToString,
   createPlayerId,
-  setPlayerNameClient,
   createMessageAction,
   runAction,
   getErrorFromAction,
@@ -136,8 +133,8 @@ export function Lobby() {
       }
       case "sayHi": {
         if (playerId != null && lobby != null) {
-          const message: Message = createChat(playerId, lobbyId, "hi");
-          socket?.emit("message", message);
+          //const message: Message = createChat(playerId, lobbyId, "hi");
+          socket?.emit("message", "WSG");
         }
         break;
       }
@@ -350,7 +347,11 @@ export function Lobby() {
     setPlayerId(playerId);
   }
 
-  function emitRetryAddPlayer(socket: Socket, message: MessageWithPlayerId) {
+  function emitRetryAddPlayer(socket: Socket, message: Message) {
+    if (message.playerId == null) {
+      console.log("SKDJV");
+      return;
+    }
     const id: string = message.playerId.id;
     socket.emit("addPlayer", message, (response: { err: boolean }) => {
       if (response == null) {
@@ -392,10 +393,6 @@ export function Lobby() {
       }
       case "addPlayer": {
         addExistingPlayer(lobby, message.playerId);
-        break;
-      }
-      case "setPlayerName": {
-        setPlayerNameClient(lobby, message.playerId);
         break;
       }
       case "start": {

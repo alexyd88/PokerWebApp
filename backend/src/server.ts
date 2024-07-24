@@ -19,9 +19,10 @@ import type {
 } from "game_logic";
 import {
   approveSitRequest,
+  messageSchema,
   cancelSitRequest,
   createChat,
-  createMessageAction,
+  validateMessage,
   createPlayerGameInfo,
   createPlayerId,
   endGame,
@@ -29,6 +30,7 @@ import {
   getErrorFromAction,
   getNumInPot,
   getRandSeat,
+  createMessageAction,
   isLeaving,
   leaveSeat,
   messageToString,
@@ -44,6 +46,7 @@ import {
   TURN_TIME,
   updateChips,
 } from "game_logic";
+import { z } from "zod";
 import { lobbies } from "./controllers/lobbies";
 import { send } from "node:process";
 
@@ -295,10 +298,6 @@ function handleMessage(message: Message) {
       //nothing special
       break;
     }
-    case "setPlayerName": {
-      setPlayerNameServer(lobby, message.playerId);
-      break;
-    }
     case "sitRequest": {
       sitRequest(
         lobby,
@@ -528,6 +527,7 @@ io.on("connection", (socket) => {
     }
   );
   socket.on("addPlayer", async (message: Message, callback) => {
+    if (!validateMessage(message)) return;
     if (message.type != "addPlayer") {
       console.log("how did u get here bro");
       return;
@@ -557,7 +557,10 @@ io.on("connection", (socket) => {
   });
 
   socket.on("message", (message: Message) => {
+    if (!validateMessage(message)) return;
     message.date = Date.now();
+    if (!lobbies.has(message.lobbyId)) return;
+    //if (!isValidMessage(message, lobbies.get(message.lobbyId))) return;
     handleMessage(message);
   });
 });
