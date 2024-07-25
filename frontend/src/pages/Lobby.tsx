@@ -34,6 +34,7 @@ import {
   cancelSitRequest,
   getLedgerEntry,
   endHand,
+  updateProbabilities,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -427,12 +428,14 @@ export function Lobby() {
         }
         updatePlayerBestHand(lobby);
         updateIsWaiting(message.date);
-        lobby.state = "waitingForAction";
+        if (lobby.gameInfo.isAllIn) updateProbabilities(lobby);
+        else lobby.state = "waitingForAction";
         break;
       }
       case "showCards": {
         for (let i = 0; i < message.cardsShown.length; i++) {
           const showCards: ShowCards = message.cardsShown[i];
+          console.log(showCards.inGameId + " JUST SHOWED HIS CARDS");
           if (!lobby.players[showCards.inGameId].gameInfo.hasHoleCards) {
             updateHoleCards(
               lobby.players[showCards.inGameId].gameInfo,
@@ -440,7 +443,6 @@ export function Lobby() {
               showCards.card2
             );
           } else {
-            console.log("i had to show my hole cards ;(");
             lobby.canShowHoleCards = false;
           }
         }
@@ -451,6 +453,10 @@ export function Lobby() {
             cardsToString(lobby.players[i].gameInfo.fullHand),
             cardsToString(lobby.players[i].gameInfo.curBestHand)
           );
+        if (lobby.gameInfo.curRound < 4 && lobby.gameInfo.setAllIn) {
+          updateProbabilities(lobby);
+          lobby.gameInfo.setAllIn = false;
+        }
         break;
       }
       case "showdown": {

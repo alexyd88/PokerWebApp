@@ -8,18 +8,19 @@ import {
   leaveSeat,
   Lobby,
   LobbyGameInfo,
+  noActionsLeft,
   Player,
   PlayerGameInfo,
   SEATS_NUMBER,
   ShowCards,
+  SIMULATE_SHOWDOWN_TIMES,
 } from "./index";
-let MersenneTwister = require("mersenne-twister");
+import { MersenneTwister19937, Random } from "random-js";
+
+const random = new Random(MersenneTwister19937.autoSeed());
 
 export function getRandInt(min: number, max: number) {
-  let gen = new MersenneTwister();
-  const minCeil = Math.ceil(min);
-  const maxFloor = Math.floor(max);
-  return Math.floor(gen.random() * (maxFloor - minCeil) + minCeil);
+  return random.integer(min, max - 1);
 }
 
 export function createCard(num: number, suit: string): Card {
@@ -48,21 +49,10 @@ export function updateHoleCards(
 }
 
 export function shuffleAndDeal(lobby: Lobby) {
+  lobby.gameInfo.deck = createDeck();
   const deck = lobby.gameInfo.deck;
   const players = lobby.players;
-  deck.length = 0;
-  for (let i = 2; i <= 14; i++)
-    for (let j = 0; j < 4; j++) {
-      let suit = "d";
-      if (j == 1) suit = "c";
-      if (j == 2) suit = "h";
-      if (j == 3) suit = "s";
-      deck.push(createCard(i, suit));
-    }
-  for (let i = 0; i < deck.length - 1; i++) {
-    const j = getRandInt(i, deck.length);
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
+  shuffle(deck);
   for (let i = 0; i < players.length; i++) {
     const card1: Card | undefined = deck.pop();
     const card2: Card | undefined = deck.pop();
@@ -151,6 +141,7 @@ function findShowCards(lobby: Lobby): ActionResult {
       cards: [],
       calledHandEnd: true,
       cardsShown: cardsShown,
+      setAllIn: false,
     };
   }
   let bestHand: Card[] = [];
@@ -171,6 +162,7 @@ function findShowCards(lobby: Lobby): ActionResult {
     cards: [],
     calledHandEnd: true,
     cardsShown: cardsShown,
+    setAllIn: false,
   };
 }
 
@@ -187,6 +179,7 @@ export function showdown(lobby: Lobby): ActionResult {
       cards: [],
       calledHandEnd: true,
       cardsShown: [],
+      setAllIn: false,
     };
   }
 
@@ -209,12 +202,10 @@ export function showdown(lobby: Lobby): ActionResult {
           bestHand = player.curBestHand;
       }
     }
-    console.log("HI");
     const winners: number[] = [];
     let totalPayout = 0;
     for (let j = 0; j < lobby.players.length; j++) {
       let player = lobby.players[j].gameInfo;
-      console.log("YO IM HERE PLEASE");
       if (player.inPot) {
         const amt = Math.min(lowestAmt, player.chipsInPot);
         player.chipsInPot -= amt;
@@ -272,6 +263,12 @@ export function endRound(lobby: Lobby, isClient: boolean): ActionResult {
   lg.curRound++;
   lg.curRaise = -1;
   lg.maxChipsThisRound = 0;
+  let setAllIn = false;
+  if (noActionsLeft(lobby) && !lg.isAllIn) {
+    setAllIn = true;
+    lg.setAllIn = true;
+    lg.isAllIn = true;
+  }
   const cards: Card[] = [];
   for (let i = 0; i < lobby.players.length; i++)
     lobby.players[i].gameInfo.chipsThisRound = 0;
@@ -293,6 +290,7 @@ export function endRound(lobby: Lobby, isClient: boolean): ActionResult {
     cards: cards,
     calledHandEnd: false,
     cardsShown: [],
+    setAllIn: setAllIn,
   };
 }
 
@@ -393,13 +391,15 @@ export function setChips(player: PlayerGameInfo, chips: number) {
   updateChips(player);
 }
 
-export function endHand(lobby: Lobby) {
+export function endHand(lobby: Lobby): number[] {
   let players: Player[] = lobby.players;
   let lg = lobby.gameInfo;
+  let usersShouldToggleAway = [];
   lobby.state = "waitingForAction";
   lg.numInPot = 0;
   lg.board.length = 0;
   lg.totalPot = 0;
+  lg.isAllIn = false;
   for (let i = 0; i < lobby.players.length; i++) {
     let player = players[i].gameInfo;
     let seat: number = -1;
@@ -409,6 +409,7 @@ export function endHand(lobby: Lobby) {
     player.curBestHand.length = 0;
     player.chipsThisRound = 0;
     player.hasHoleCards = false;
+    player.probability = -1;
     updateChips(player);
     player.card1 = { num: 0, numDisplay: "?", suit: "?" };
     player.card2 = { num: 0, numDisplay: "?", suit: "?" };
@@ -416,7 +417,10 @@ export function endHand(lobby: Lobby) {
     if (seat == -1) player.inPot = false;
     if (player.stack == 0) player.leaving = true;
 
-    if (player.timeoutCount >= 2) player.away = true;
+    if (player.timeoutCount >= 4) {
+      if (!player.away) usersShouldToggleAway.push(i);
+      player.away = true;
+    }
 
     if (isLeaving(player) && seat != -1) {
       leaveSeat(lobby, i);
@@ -425,6 +429,7 @@ export function endHand(lobby: Lobby) {
     player.startedInPot = player.inPot;
     if (player.inPot) lobby.gameInfo.numInPot++;
   }
+  return usersShouldToggleAway;
 }
 
 export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
@@ -477,6 +482,109 @@ export function getRandSeat(lobby: Lobby) {
     if (lobby.seats[i] != -1 && !lobby.players[lobby.seats[i]].gameInfo.away) {
       if (randSeat == 0) return i;
       randSeat--;
+    }
+  }
+}
+
+export function createDeck(): Card[] {
+  let deck: Card[] = [];
+  for (let i = 2; i <= 14; i++)
+    for (let j = 0; j < 4; j++) {
+      let suit = "d";
+      if (j == 1) suit = "c";
+      if (j == 2) suit = "h";
+      if (j == 3) suit = "s";
+      deck.push(createCard(i, suit));
+    }
+  return deck;
+}
+
+export function shuffle(deck: Card[]) {
+  for (let i = 0; i < deck.length - 1; i++) {
+    const j = getRandInt(i, deck.length);
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+}
+
+export function cardsEqual(card1: Card, card2: Card): boolean {
+  return card1.num == card2.num && card1.suit == card2.suit;
+}
+
+export function updateProbabilities(lobby: Lobby) {
+  let deck: Card[] = createDeck();
+  let remainingDeck: Card[] = [];
+  let players = lobby.players;
+  console.log("PROB 1");
+  for (let i = 0; i < 52; i++) {
+    let shouldRemove = false;
+    for (let j = 0; j < players.length; j++) {
+      if (players[j].gameInfo.inPot) {
+        if (!players[j].gameInfo.hasHoleCards) {
+          console.log("NAH WTF");
+        }
+        if (
+          cardsEqual(players[j].gameInfo.card1, deck[i]) ||
+          cardsEqual(players[j].gameInfo.card2, deck[i])
+        )
+          shouldRemove = true;
+      }
+    }
+    for (let j = 0; j < lobby.gameInfo.board.length; j++) {
+      if (cardsEqual(lobby.gameInfo.board[j], deck[i])) shouldRemove = true;
+    }
+    if (!shouldRemove) {
+      remainingDeck.push(deck[i]);
+    }
+  }
+  console.log("PROB 2");
+  shuffle(remainingDeck);
+  let fullHands: Card[][] = [];
+  for (let i = 0; i < players.length; i++) {
+    if (players[i].gameInfo.inPot) {
+      fullHands.push(JSON.parse(JSON.stringify(players[i].gameInfo.fullHand)));
+      players[i].gameInfo.probability = 0;
+    } else fullHands.push([]);
+  }
+  console.log("PROB 3");
+  const numCardsNeeded = 5 - lobby.gameInfo.board.length;
+  for (let i = 0; i < SIMULATE_SHOWDOWN_TIMES; i++) {
+    let newCardIndices = [];
+    while (newCardIndices.length < numCardsNeeded) {
+      const index = getRandInt(0, remainingDeck.length);
+      let good = true;
+      for (let i = 0; i < newCardIndices.length; i++)
+        if (newCardIndices[i] == index) good = false;
+      if (good) newCardIndices.push(index);
+    }
+    let newCards = [];
+    for (let i = 0; i < numCardsNeeded; i++)
+      newCards.push(remainingDeck[newCardIndices[i]]);
+    let bestHands = [];
+    for (let i = 0; i < fullHands.length; i++) {
+      for (let j = 0; j < newCards.length; j++) fullHands[i].push(newCards[j]);
+      if (fullHands[i].length == 7) bestHands.push(findBestHand(fullHands[i]));
+      else bestHands.push([]);
+    }
+    console.log("PROB 4");
+
+    let cb = -1;
+    for (let i = 0; i < bestHands.length; i++) {
+      if (bestHands[i].length == 5) {
+        if (cb == -1) {
+          cb = i;
+          continue;
+        }
+        if (compareHands(bestHands[cb], bestHands[i]) == -1) cb = i;
+      }
+    }
+    if (cb != -1) players[cb].gameInfo.probability++;
+    else {
+      console.log("BRO WHAT");
+    }
+
+    console.log("PROB 5");
+    for (let i = 0; i < fullHands.length; i++) {
+      fullHands[i].length = Math.min(fullHands[i].length, 7 - numCardsNeeded);
     }
   }
 }

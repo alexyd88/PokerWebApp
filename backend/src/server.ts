@@ -89,12 +89,7 @@ function addAndReturn(message: Message) {
     for (let i = 0; i < message.cardsShown.length; i++) {
       message.receiver = message.cardsShown[i].inGameId;
       haveSentMessage[message.receiver] = true;
-      console.log(
-        "gonna send ",
-        message.cardsShown[i].card1,
-        "to " + message.receiver,
-        message.id
-      );
+      console.log("gonna send ", "to " + message.receiver, message.id);
       io.in(lobby.socketList[message.receiver]).emit(
         "message",
         prepareMessageForClient(lobby, message)
@@ -167,7 +162,17 @@ function sendEndGame(lobby: Lobby) {
 }
 
 function sendEndHand(lobby: LobbyServer) {
-  endHand(lobby);
+  let awayMessages = endHand(lobby);
+  for (let i = 0; i < awayMessages.length; i++) {
+    addAndReturn({
+      id: -1,
+      type: "awayToggle",
+      playerId: lobby.players[awayMessages[i]].playerId,
+      inGameId: lobby.players[awayMessages[i]].playerId.inGameId,
+      lobbyId: lobby.id,
+      date: Date.now(),
+    });
+  }
   if (lobby.isEnding || getNumInPot(lobby) < 2) {
     sendEndGame(lobby);
     console.log("SENT END GAME");
@@ -194,7 +199,7 @@ function sendCardsShown(lobby: Lobby, cardsShown: ShowCards[]) {
 //expects curplayer to be real player
 function expectAction(lobby: LobbyServer) {
   if (shouldAutoAction(lobby)) {
-    handleAutoAction(lobby);
+    handleAutoAction(lobby, true);
     return;
   }
   clearTimeout(lobby.timeout);
@@ -202,7 +207,8 @@ function expectAction(lobby: LobbyServer) {
 
   let message: Message = getAutoAction(
     lobby,
-    lobby.players[lobby.seats[lobby.gameInfo.curPlayer]]
+    lobby.players[lobby.seats[lobby.gameInfo.curPlayer]],
+    true
   );
 
   lobby.timeout = setTimeout(
@@ -218,7 +224,11 @@ function sendCommunityCards(lobby: LobbyServer, message: Message) {
   expectAction(lobby);
 }
 
-function getAutoAction(lobby: Lobby, player: Player): Message {
+function getAutoAction(
+  lobby: Lobby,
+  player: Player,
+  wasTimeout: boolean
+): Message {
   if (lobby.seats[lobby.gameInfo.curPlayer] != player.playerId.inGameId) {
     console.log("somehow this mf beat the clock barely??");
     return;
@@ -228,7 +238,7 @@ function getAutoAction(lobby: Lobby, player: Player): Message {
     "check",
     0,
     lobby.id,
-    true
+    wasTimeout
   );
   if (message.type != "action") {
     console.log("WTF");
@@ -254,9 +264,11 @@ function requeueMessage(lobby: LobbyServer) {
       lobby.queuedMessage
     ) as unknown as number;
   } else if (lobby.queuedMessage.type == "newCommunityCards") {
+    let cardTime = NEW_CARD_TIME;
+    if (lobby.gameInfo.isAllIn) cardTime *= 2;
     lobby.timeout = setTimeout(
       sendCommunityCards,
-      NEW_CARD_TIME,
+      cardTime,
       lobby,
       lobby.queuedMessage
     ) as unknown as number;
@@ -281,11 +293,15 @@ function shouldAutoAction(lobby: Lobby) {
   );
 }
 
-function handleAutoAction(lobby: Lobby) {
+function handleAutoAction(lobby: Lobby, wasTimeout: boolean) {
   if (!lobby.gameInfo.gameStarted) return;
   if (shouldAutoAction(lobby)) {
     handleMessage(
-      getAutoAction(lobby, lobby.players[lobby.seats[lobby.gameInfo.curPlayer]])
+      getAutoAction(
+        lobby,
+        lobby.players[lobby.seats[lobby.gameInfo.curPlayer]],
+        wasTimeout
+      )
     );
   }
 }
@@ -352,13 +368,13 @@ function handleMessage(message: Message) {
         lobby.players[message.inGameId].gameInfo.away &&
         message.inGameId == lobby.seats[lobby.gameInfo.curPlayer]
       )
-        handleAutoAction(lobby);
+        handleAutoAction(lobby, false);
       break;
     }
     case "leavingToggle": {
       lobby.players[message.inGameId].gameInfo.leaving =
         !lobby.players[message.inGameId].gameInfo.leaving;
-      handleAutoAction(lobby);
+      handleAutoAction(lobby, false);
       if (
         lobby.players[message.inGameId].gameInfo.leaving &&
         !lobby.gameInfo.gameStarted
@@ -369,7 +385,7 @@ function handleMessage(message: Message) {
     case "kickingToggle": {
       lobby.players[message.inGameId].gameInfo.kicking =
         !lobby.players[message.inGameId].gameInfo.kicking;
-      handleAutoAction(lobby);
+      handleAutoAction(lobby, false);
       if (
         lobby.players[message.inGameId].gameInfo.kicking &&
         !lobby.gameInfo.gameStarted
@@ -422,6 +438,16 @@ function handleMessage(message: Message) {
         lobby.gameInfo.dealerChip = getRandSeat(lobby);
         sendEndHand(lobby);
       }
+      if (actionResult.setAllIn) {
+        let showCards: ShowCards[] = [];
+        for (let i = 0; i < lobby.players.length; i++) {
+          let pg = lobby.players[i].gameInfo;
+          if (pg.inPot) {
+            showCards.push({ inGameId: i, card1: pg.card1, card2: pg.card2 });
+          }
+        }
+        sendCardsShown(lobby, showCards);
+      }
 
       // new cards
       if (actionResult.cards.length != 0) {
@@ -435,9 +461,11 @@ function handleMessage(message: Message) {
           cards: actionResult.cards,
         };
         clearTimeout(lobby.timeout);
+        let cardTime = NEW_CARD_TIME;
+        if (lobby.gameInfo.isAllIn) cardTime *= 2;
         lobby.timeout = setTimeout(
           sendCommunityCards,
-          NEW_CARD_TIME,
+          cardTime,
           lobby,
           cardMessage
         ) as unknown as number;

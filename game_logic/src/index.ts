@@ -14,7 +14,7 @@ import {
 } from "./logic";
 import { strengthToString } from "./handEval";
 import { Socket } from "socket.io";
-import { SEATS_NUMBER } from "./constants";
+import { SEATS_NUMBER, SIMULATE_SHOWDOWN_TIMES } from "./constants";
 import { z } from "zod";
 
 export * from "./logic";
@@ -364,6 +364,7 @@ export function sit(
   pg.startedInPot = false;
   pg.inPot = false;
   pg.away = false;
+  pg.timeoutCount = 0;
 }
 
 export function leaveSeat(lobby: Lobby, inGameId: number) {
@@ -439,6 +440,8 @@ export interface LobbyGameInfo {
   maxChipsThisRound: number;
   totalPot: number;
   lastAggressivePerson: number; //seat of last aggressive person
+  isAllIn: boolean;
+  setAllIn: boolean;
   deck: Card[];
   board: Card[];
 }
@@ -488,6 +491,8 @@ export function createLobbyGameInfo(): LobbyGameInfo {
     maxChipsThisRound: 2,
     totalPot: 3,
     lastAggressivePerson: -1,
+    isAllIn: false,
+    setAllIn: false,
     deck: [],
     board: [],
   };
@@ -564,6 +569,7 @@ export interface PlayerGameInfo {
   buyOut: number;
   timeoutCount: number; //number of consecutive timeouts
   //net is stack - buyIn + buyOut
+  probability: number;
 }
 
 export function playerGameInfoToString(player: Player, lobby: Lobby) {
@@ -588,6 +594,8 @@ export function playerGameInfoToString(player: Player, lobby: Lobby) {
       cardsToString(gameInfo.curBestHand) +
       " | " +
       strengthToString(gameInfo.curHandStrength);
+  if (gameInfo.probability != -1)
+    s += " | PROBABILITY:" + gameInfo.probability / SIMULATE_SHOWDOWN_TIMES;
   if (
     lobby.state == "waitingForAction" &&
     lobby.gameInfo.curPlayer == player.gameInfo.seat
@@ -645,6 +653,7 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     seat: -1,
     changeChips: { modifier: "add", amount: 0 },
     timeoutCount: 0,
+    probability: -1,
   };
 }
 
@@ -770,6 +779,7 @@ export interface ActionResult {
   calledHandEnd: boolean;
   cardsShown: ShowCards[];
   isWaitingForAction: boolean;
+  setAllIn: boolean;
 }
 
 export function runAction(
@@ -794,7 +804,7 @@ export function runAction(
 
     //console.log(lobby.players, lobby.seats, lg.curPlayer);
   }
-  if (message.auto) curPlayer.timeoutCount++;
+  if (message.auto && !isClient) curPlayer.timeoutCount++;
   else curPlayer.timeoutCount = 0;
   switch (message.action) {
     case "start": {
@@ -804,6 +814,7 @@ export function runAction(
         cards: [],
         calledHandEnd: false,
         cardsShown: [],
+        setAllIn: false,
       };
     }
     case "raise": {
@@ -862,6 +873,7 @@ export function runAction(
     cards: [],
     calledHandEnd: false,
     cardsShown: [],
+    setAllIn: false,
   };
   lg.curPlayer = findNext(lobby, lg.curPlayer);
   lobby.state = "waitingForAction";
