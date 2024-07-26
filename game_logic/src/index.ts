@@ -594,8 +594,11 @@ export function playerGameInfoToString(player: Player, lobby: Lobby) {
       cardsToString(gameInfo.curBestHand) +
       " | " +
       strengthToString(gameInfo.curHandStrength);
-  if (gameInfo.probability != -1)
-    s += " | PROBABILITY:" + gameInfo.probability / SIMULATE_SHOWDOWN_TIMES;
+  let percent = (gameInfo.probability / SIMULATE_SHOWDOWN_TIMES) * 100;
+  let percentString = percent.toFixed(1);
+  if (percent < 1 && percent != 0) percentString = "<1";
+  percentString += "%";
+  if (gameInfo.probability != -1) s += " | PROBABILITY:" + percentString;
   if (
     lobby.state == "waitingForAction" &&
     lobby.gameInfo.curPlayer == player.gameInfo.seat
