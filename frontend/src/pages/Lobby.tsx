@@ -118,6 +118,15 @@ export function Lobby() {
   function reload() {
     handleButton("reload");
   }
+  function straddleToggle() {
+    handleButton("straddleToggle");
+  }
+  function setBigBlind() {
+    handleButton("setBigBlind");
+  }
+  function setAnte() {
+    handleButton("setAnte");
+  }
   function handleButton(button: string) {
     lobby = JSON.parse(JSON.stringify(reactLobby));
     playerId = JSON.parse(JSON.stringify(reactPlayerId));
@@ -296,13 +305,13 @@ export function Lobby() {
         const inGameId: HTMLInputElement = document.getElementById(
           "player_id"
         ) as HTMLInputElement;
-        const amount: HTMLInputElement = document.getElementById(
-          "amount"
+        const modifyAmount: HTMLInputElement = document.getElementById(
+          "modifyAmount"
         ) as HTMLInputElement;
         const message: Message = {
           id: -1,
           type: "changeChips",
-          changeChips: { modifier: button, amount: Number(amount.value) },
+          changeChips: { modifier: button, amount: Number(modifyAmount.value) },
           playerId: playerId,
           inGameId: Number(inGameId.value),
           lobbyId: lobbyId,
@@ -315,6 +324,47 @@ export function Lobby() {
         const message: Message = {
           id: -1,
           type: "showMyCards",
+          playerId: playerId,
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
+        break;
+      }
+      case "straddleToggle": {
+        const message: Message = {
+          id: -1,
+          type: "straddleToggle",
+          playerId: playerId,
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
+        break;
+      }
+      case "setBigBlind": {
+        const bigBlindAmount: HTMLInputElement = document.getElementById(
+          "bigBlind"
+        ) as HTMLInputElement;
+        const message: Message = {
+          id: -1,
+          type: "setBigBlind",
+          bigBlind: Number(bigBlindAmount.value),
+          playerId: playerId,
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
+        break;
+      }
+      case "setAnte": {
+        const anteAmount: HTMLInputElement = document.getElementById(
+          "ante"
+        ) as HTMLInputElement;
+        const message: Message = {
+          id: -1,
+          type: "setAnte",
+          ante: Number(anteAmount.value),
           playerId: playerId,
           lobbyId: lobbyId,
           date: Date.now(),
@@ -405,6 +455,18 @@ export function Lobby() {
     switch (message.type) {
       case "chat": {
         //nothing special really
+        break;
+      }
+      case "setBigBlind": {
+        lobby.gameInfo.bigBlind = message.bigBlind;
+        break;
+      }
+      case "straddleToggle": {
+        lobby.gameInfo.straddle = !lobby.gameInfo.straddle;
+        break;
+      }
+      case "setAnte": {
+        lobby.gameInfo.ante = message.ante;
         break;
       }
       case "addPlayer": {
@@ -742,14 +804,20 @@ export function Lobby() {
         {reactLobby?.host == reactPlayerId?.inGameId ? (
           <div>
             <input type="number" id="player_id"></input>
-            <button onClick={setHost}>setHost</button>
+            <button onClick={setHost}>set host</button>
             <button onClick={kickingToggle}>kick</button>
-            <input type="number" id="amount"></input>
+            <input type="number" id="modifyAmount"></input>
             <button onClick={addChips}>add chips</button>
             <button onClick={removeChips}>remove chips</button>
             <button onClick={setChips}>set chips</button>
             <div></div>
             <button onClick={start}>start</button>
+            <button onClick={straddleToggle}>toggle straddle</button>
+            <input type="number" id="bigBlind" placeholder="big blind"></input>
+            <button onClick={setBigBlind}>set big blind</button>
+            <input type="number" id="ante" placeholder="ante"></input>
+            <button onClick={setAnte}>set ante</button>
+
             {reactLobby?.gameInfo.gameStarted ? (
               <div>
                 <button onClick={pauseToggle}>

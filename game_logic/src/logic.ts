@@ -264,7 +264,7 @@ export function endRound(lobby: Lobby, isClient: boolean): ActionResult {
   lg.curRaise = -1;
   lg.maxChipsThisRound = 0;
   let setAllIn = false;
-  if (noActionsLeft(lobby) && !lg.isAllIn) {
+  if (noActionsLeft(lobby) && !lg.isAllIn && lg.numInPot != 1) {
     setAllIn = true;
     lg.setAllIn = true;
     lg.isAllIn = true;
@@ -449,6 +449,13 @@ export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
   lg.board.length = 0;
   let sb = findNext(lobby, lg.dealerChip);
   if (lg.numInPot == 2) sb = lg.dealerChip;
+  for (let i = 0; i < SEATS_NUMBER; i++)
+    if (lobby.seats[i] != -1 && players[lobby.seats[i]].gameInfo.inPot)
+      raise(
+        players[lobby.seats[i]].gameInfo,
+        lg,
+        Math.min(lg.ante, players[lobby.seats[i]].gameInfo.stack)
+      );
   raise(
     players[lobby.seats[sb]].gameInfo,
     lg,
@@ -460,7 +467,15 @@ export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
     lg,
     Math.min(lg.bigBlind, players[lobby.seats[bb]].gameInfo.stack)
   );
-  lg.curPlayer = findNext(lobby, bb);
+  const straddle = findNext(lobby, bb);
+  if (lg.straddle && sb != straddle) {
+    raise(
+      players[lobby.seats[straddle]].gameInfo,
+      lg,
+      Math.min(lg.bigBlind * 2, players[lobby.seats[straddle]].gameInfo.stack)
+    );
+    lg.curPlayer = findNext(lobby, straddle);
+  } else lg.curPlayer = findNext(lobby, bb);
   lg.maxChipsInPot = lg.bigBlind;
   lg.maxChipsThisRound = lg.bigBlind;
   lg.curRound = 0;

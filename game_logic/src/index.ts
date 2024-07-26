@@ -146,6 +146,15 @@ export const messageSchema = z.discriminatedUnion("type", [
     .object({ type: z.literal("kickingToggle"), inGameId: z.number().int() })
     .merge(messageCommonWithPlayerIdSchema),
   z
+    .object({ type: z.literal("setBigBlind"), bigBlind: z.number().int() })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("straddleToggle") })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("setAnte"), ante: z.number().int() })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
     .object({
       type: z.literal("changeChips"),
       inGameId: z.number().int(),
@@ -442,6 +451,8 @@ export interface LobbyGameInfo {
   lastAggressivePerson: number; //seat of last aggressive person
   isAllIn: boolean;
   setAllIn: boolean;
+  ante: number;
+  straddle: boolean;
   deck: Card[];
   board: Card[];
 }
@@ -491,6 +502,8 @@ export function createLobbyGameInfo(): LobbyGameInfo {
     maxChipsThisRound: 2,
     totalPot: 3,
     lastAggressivePerson: -1,
+    ante: 0,
+    straddle: false,
     isAllIn: false,
     setAllIn: false,
     deck: [],

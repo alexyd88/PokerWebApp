@@ -314,6 +314,18 @@ function handleMessage(message: Message) {
       //nothing special
       break;
     }
+    case "setBigBlind": {
+      lobby.gameInfo.bigBlind = message.bigBlind;
+      break;
+    }
+    case "straddleToggle": {
+      lobby.gameInfo.straddle = !lobby.gameInfo.straddle;
+      break;
+    }
+    case "setAnte": {
+      lobby.gameInfo.ante = message.ante;
+      break;
+    }
     case "sitRequest": {
       sitRequest(
         lobby,
