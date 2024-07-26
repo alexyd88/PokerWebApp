@@ -453,6 +453,7 @@ export interface LobbyGameInfo {
   setAllIn: boolean;
   ante: number;
   straddle: boolean;
+  sevenDeuce: boolean;
   deck: Card[];
   board: Card[];
 }
@@ -506,6 +507,7 @@ export function createLobbyGameInfo(): LobbyGameInfo {
     straddle: false,
     isAllIn: false,
     setAllIn: false,
+    sevenDeuce: false,
     deck: [],
     board: [],
   };
@@ -581,6 +583,8 @@ export interface PlayerGameInfo {
   buyIn: number;
   buyOut: number;
   timeoutCount: number; //number of consecutive timeouts
+  chipsWon: number;
+  chipsLost: number;
   //net is stack - buyIn + buyOut
   probability: number;
 }
@@ -670,6 +674,8 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     changeChips: { modifier: "add", amount: 0 },
     timeoutCount: 0,
     probability: -1,
+    chipsWon: 0,
+    chipsLost: 0,
   };
 }
 

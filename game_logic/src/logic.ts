@@ -166,12 +166,33 @@ function findShowCards(lobby: Lobby): ActionResult {
   };
 }
 
+export function isSevenDeuce(gameInfo: PlayerGameInfo): boolean {
+  return (
+    (gameInfo.card1.num == 7 && gameInfo.card2.num == 2) ||
+    (gameInfo.card2.num == 7 && gameInfo.card1.num == 2)
+  );
+}
+
+export function handleSevenDeuce(lobby: Lobby, index: number) {
+  for (let i = 0; i < lobby.players.length; i++) {
+    if (lobby.players[i].gameInfo.startedInPot && i != index) {
+      let amt = Math.min(
+        lobby.players[i].gameInfo.stack,
+        lobby.gameInfo.bigBlind
+      );
+      lobby.players[i].gameInfo.stack -= amt;
+      lobby.players[index].gameInfo.stack += amt;
+    }
+  }
+}
+
 export function showdown(lobby: Lobby): ActionResult {
   lobby.state = "showdown";
   let lg = lobby.gameInfo;
   if (lg.numInPot == 1) {
     for (let i = 0; i < lobby.players.length; i++)
       if (lobby.players[i].gameInfo.inPot) {
+        if (isSevenDeuce(lobby.players[i].gameInfo)) handleSevenDeuce(lobby, i);
         takeFromPot(lg, lobby.players[i].gameInfo, lg.totalPot);
       }
     return {
@@ -185,6 +206,10 @@ export function showdown(lobby: Lobby): ActionResult {
 
   let actionResult = findShowCards(lobby);
 
+  for (let i = 0; i < lobby.players.length; i++) {
+    let player = lobby.players[i].gameInfo;
+    if (player.inPot) player.chipsLost = player.chipsInPot;
+  }
   while (lg.numInPot > 0) {
     let bestHand: Card[] = [];
     let lowestAmt = -1;
@@ -229,6 +254,8 @@ export function showdown(lobby: Lobby): ActionResult {
       let player = lobby.players[winners[j]].gameInfo;
       takeFromPot(lg, player, singlePayout);
       totalPayout -= singlePayout;
+      if (player.chipsWon > player.chipsLost && isSevenDeuce(player))
+        handleSevenDeuce(lobby, winners[j]);
     }
 
     let seat = findNext(lobby, lg.dealerChip);
@@ -340,6 +367,7 @@ export function takeFromPot(
   x: number
 ) {
   player.stack += +x;
+  player.chipsWon += +x;
   lobby.totalPot -= +x;
 }
 
@@ -410,6 +438,8 @@ export function endHand(lobby: Lobby): number[] {
     player.chipsThisRound = 0;
     player.hasHoleCards = false;
     player.probability = -1;
+    player.chipsWon = 0;
+    player.chipsLost = 0;
     updateChips(player);
     player.card1 = { num: 0, numDisplay: "?", suit: "?" };
     player.card2 = { num: 0, numDisplay: "?", suit: "?" };
