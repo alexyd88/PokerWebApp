@@ -186,20 +186,37 @@ export function handleSevenDeuce(lobby: Lobby, index: number) {
   }
 }
 
+export function updateStackWithSevenDeuce(lobby: Lobby) {
+  for (let i = 0; i < lobby.players.length; i++)
+    lobby.players[i].gameInfo.stack += lobby.players[i].gameInfo.sevenDeuceNet;
+}
+
 export function showdown(lobby: Lobby): ActionResult {
   lobby.state = "showdown";
   let lg = lobby.gameInfo;
   if (lg.numInPot == 1) {
+    let cardsShown: ShowCards[] = [];
     for (let i = 0; i < lobby.players.length; i++)
       if (lobby.players[i].gameInfo.inPot) {
-        if (isSevenDeuce(lobby.players[i].gameInfo)) handleSevenDeuce(lobby, i);
+        if (
+          isSevenDeuce(lobby.players[i].gameInfo) &&
+          lobby.gameInfo.sevenDeuce
+        ) {
+          handleSevenDeuce(lobby, i);
+          let gameInfo = lobby.players[i].gameInfo;
+          cardsShown = [
+            { inGameId: i, card1: gameInfo.card1, card2: gameInfo.card2 },
+          ];
+        }
+
         takeFromPot(lg, lobby.players[i].gameInfo, lg.totalPot);
       }
+    updateStackWithSevenDeuce(lobby);
     return {
       isWaitingForAction: false,
       cards: [],
       calledHandEnd: true,
-      cardsShown: [],
+      cardsShown: cardsShown,
       setAllIn: false,
     };
   }
@@ -254,10 +271,16 @@ export function showdown(lobby: Lobby): ActionResult {
       let player = lobby.players[winners[j]].gameInfo;
       takeFromPot(lg, player, singlePayout);
       totalPayout -= singlePayout;
-      if (player.chipsWon > player.chipsLost && isSevenDeuce(player))
+      if (
+        player.chipsWon > player.chipsLost &&
+        isSevenDeuce(player) &&
+        lobby.gameInfo.sevenDeuce
+      ) {
         handleSevenDeuce(lobby, winners[j]);
+      }
     }
 
+    updateStackWithSevenDeuce(lobby);
     let seat = findNext(lobby, lg.dealerChip);
     let start = seat;
     let player = lobby.players[lobby.seats[seat]].gameInfo;
@@ -275,9 +298,6 @@ export function showdown(lobby: Lobby): ActionResult {
       }
       seat = findNext(lobby, seat);
     }
-  }
-  for (let i = 0; i < lobby.players.length; i++) {
-    lobby.players[i].gameInfo.stack += lobby.players[i].gameInfo.sevenDeuceNet;
   }
 
   if (lg.totalPot != 0) {
@@ -515,6 +535,7 @@ export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
   lg.curRound = 0;
   lg.curRaise = lg.bigBlind;
   lg.numPlayedThisRound = 0;
+  lg.sevenDeuce = lg.setSevenDeuce;
   lobby.isEnding = false;
   if (!isClient) shuffleAndDeal(lobby);
 }
@@ -548,19 +569,19 @@ export function createDeck(): Card[] {
   return deck;
 }
 
-// function rigDeck(deck: Card[]) {
-//   deck[50].num = 7;
-//   deck[50].numDisplay = "7";
-//   deck[51].num = 2;
-//   deck[51].numDisplay = "2";
-// }
+function rigDeck(deck: Card[]) {
+  deck[50].num = 7;
+  deck[50].numDisplay = "7";
+  deck[51].num = 2;
+  deck[51].numDisplay = "2";
+}
 
 export function shuffle(deck: Card[]) {
   for (let i = 0; i < deck.length - 1; i++) {
     const j = getRandInt(i, deck.length);
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
-  // rigDeck(deck);
+  rigDeck(deck);
 }
 
 export function cardsEqual(card1: Card, card2: Card): boolean {
@@ -643,5 +664,13 @@ export function updateProbabilities(lobby: Lobby) {
     for (let i = 0; i < fullHands.length; i++) {
       fullHands[i].length = Math.min(fullHands[i].length, 7 - numCardsNeeded);
     }
+  }
+}
+
+export function toggleSevenDeuce(lobby: Lobby) {
+  let lg = lobby.gameInfo;
+  lg.setSevenDeuce = !lg.setSevenDeuce;
+  if (!lg.gameStarted) {
+    lg.sevenDeuce = lg.setSevenDeuce;
   }
 }

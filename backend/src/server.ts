@@ -46,6 +46,7 @@ import {
   TURN_TIME,
   updateChips,
   NEW_CARD_TIME_ALLIN,
+  toggleSevenDeuce,
 } from "game_logic";
 import { z } from "zod";
 import { lobbies } from "./controllers/lobbies";
@@ -319,6 +320,10 @@ function handleMessage(message: Message) {
     }
     case "straddleToggle": {
       lobby.gameInfo.straddle = !lobby.gameInfo.straddle;
+      break;
+    }
+    case "sevenDeuceToggle": {
+      toggleSevenDeuce(lobby);
       break;
     }
     case "setAnte": {

@@ -35,6 +35,8 @@ import {
   getLedgerEntry,
   endHand,
   updateProbabilities,
+  toggleSevenDeuce,
+  gameModifiersToString,
 } from "game_logic";
 import { io, Socket } from "socket.io-client";
 
@@ -120,6 +122,9 @@ export function Lobby() {
   }
   function straddleToggle() {
     handleButton("straddleToggle");
+  }
+  function sevenDeuceToggle() {
+    handleButton("sevenDeuceToggle");
   }
   function setBigBlind() {
     handleButton("setBigBlind");
@@ -342,6 +347,17 @@ export function Lobby() {
         socket?.emit("message", message);
         break;
       }
+      case "sevenDeuceToggle": {
+        const message: Message = {
+          id: -1,
+          type: "sevenDeuceToggle",
+          playerId: playerId,
+          lobbyId: lobbyId,
+          date: Date.now(),
+        };
+        socket?.emit("message", message);
+        break;
+      }
       case "setBigBlind": {
         const bigBlindAmount: HTMLInputElement = document.getElementById(
           "bigBlind"
@@ -463,6 +479,10 @@ export function Lobby() {
       }
       case "straddleToggle": {
         lobby.gameInfo.straddle = !lobby.gameInfo.straddle;
+        break;
+      }
+      case "sevenDeuceToggle": {
+        toggleSevenDeuce(lobby);
         break;
       }
       case "setAnte": {
@@ -738,6 +758,7 @@ export function Lobby() {
           </li>
         );
       })}
+      <div>{gameModifiersToString(reactLobby)}</div>
       <div>state:{reactLobby?.state}</div>
       <div>
         time{" "}
@@ -817,6 +838,7 @@ export function Lobby() {
             <button onClick={setBigBlind}>set big blind</button>
             <input type="number" id="ante" placeholder="ante"></input>
             <button onClick={setAnte}>set ante</button>
+            <button onClick={sevenDeuceToggle}>toggle seven deuce game</button>
 
             {reactLobby?.gameInfo.gameStarted ? (
               <div>

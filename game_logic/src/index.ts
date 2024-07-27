@@ -152,6 +152,9 @@ export const messageSchema = z.discriminatedUnion("type", [
     .object({ type: z.literal("straddleToggle") })
     .merge(messageCommonWithPlayerIdSchema),
   z
+    .object({ type: z.literal("sevenDeuceToggle") })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
     .object({ type: z.literal("setAnte"), ante: z.number().int() })
     .merge(messageCommonWithPlayerIdSchema),
   z
@@ -453,6 +456,7 @@ export interface LobbyGameInfo {
   setAllIn: boolean;
   ante: number;
   straddle: boolean;
+  setSevenDeuce: boolean;
   sevenDeuce: boolean;
   deck: Card[];
   board: Card[];
@@ -508,6 +512,7 @@ export function createLobbyGameInfo(): LobbyGameInfo {
     isAllIn: false,
     setAllIn: false,
     sevenDeuce: false,
+    setSevenDeuce: false,
     deck: [],
     board: [],
   };
@@ -592,7 +597,15 @@ export interface PlayerGameInfo {
 
 export function playerGameInfoToString(player: Player, lobby: Lobby) {
   const gameInfo: PlayerGameInfo = player.gameInfo;
-  let s = "stack: " + (gameInfo.stack - gameInfo.chipsWon);
+  console.log(
+    "YPLAYERINFO",
+    player.playerId.inGameId,
+    gameInfo.stack,
+    gameInfo.chipsWon,
+    gameInfo.sevenDeuceNet
+  );
+  let s =
+    "stack: " + (gameInfo.stack - gameInfo.chipsWon - gameInfo.sevenDeuceNet);
   if (gameInfo.chipsWon != 0) s += " + " + gameInfo.chipsWon;
   if (gameInfo.sevenDeuceNet != 0)
     s +=
@@ -632,6 +645,20 @@ export function playerGameInfoToString(player: Player, lobby: Lobby) {
   // (player.playerId.seat == lobby.gameInfo.curPlayer)
   // ? "<-- this guy's turn"
   // : "";
+}
+
+export function gameModifiersToString(lobby: Lobby | null): string {
+  if (lobby == null) return "";
+  let lg = lobby.gameInfo;
+  let s = "";
+  s += "blinds: " + lg.bigBlind / 2 + "/" + lg.bigBlind;
+  s += "  ante: " + (lg.ante == 0 ? "off" : lg.ante);
+  s += "  straddle: " + (lg.straddle ? "on" : "off");
+  s += "  seven deuce game: " + (lg.sevenDeuce ? "on" : "off");
+  if (lg.sevenDeuce != lg.setSevenDeuce)
+    s += lg.setSevenDeuce ? ", on next hand" : ", off next hand";
+
+  return s;
 }
 
 export function lobbyInfoToString(lobby: LobbyGameInfo) {
