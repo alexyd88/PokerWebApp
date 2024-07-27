@@ -596,7 +596,9 @@ export function playerGameInfoToString(player: Player, lobby: Lobby) {
   if (gameInfo.chipsWon != 0) s += " + " + gameInfo.chipsWon;
   if (gameInfo.sevenDeuceNet != 0)
     s +=
-      " " + (gameInfo.sevenDeuceNet > 0 ? "+ " : "- ") + gameInfo.sevenDeuceNet;
+      " " +
+      (gameInfo.sevenDeuceNet > 0 ? "+ " : "- ") +
+      Math.abs(gameInfo.sevenDeuceNet);
   s +=
     " | inPot: " +
     gameInfo.inPot +

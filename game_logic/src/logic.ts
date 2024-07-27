@@ -548,11 +548,19 @@ export function createDeck(): Card[] {
   return deck;
 }
 
+// function rigDeck(deck: Card[]) {
+//   deck[50].num = 7;
+//   deck[50].numDisplay = "7";
+//   deck[51].num = 2;
+//   deck[51].numDisplay = "2";
+// }
+
 export function shuffle(deck: Card[]) {
   for (let i = 0; i < deck.length - 1; i++) {
     const j = getRandInt(i, deck.length);
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
+  // rigDeck(deck);
 }
 
 export function cardsEqual(card1: Card, card2: Card): boolean {
