@@ -180,8 +180,8 @@ export function handleSevenDeuce(lobby: Lobby, index: number) {
         lobby.players[i].gameInfo.stack,
         lobby.gameInfo.bigBlind
       );
-      lobby.players[i].gameInfo.stack -= amt;
-      lobby.players[index].gameInfo.stack += amt;
+      lobby.players[i].gameInfo.sevenDeuceNet -= amt;
+      lobby.players[index].gameInfo.sevenDeuceNet += amt;
     }
   }
 }
@@ -275,6 +275,9 @@ export function showdown(lobby: Lobby): ActionResult {
       }
       seat = findNext(lobby, seat);
     }
+  }
+  for (let i = 0; i < lobby.players.length; i++) {
+    lobby.players[i].gameInfo.stack += lobby.players[i].gameInfo.sevenDeuceNet;
   }
 
   if (lg.totalPot != 0) {
@@ -440,6 +443,7 @@ export function endHand(lobby: Lobby): number[] {
     player.probability = -1;
     player.chipsWon = 0;
     player.chipsLost = 0;
+    player.sevenDeuceNet = 0;
     updateChips(player);
     player.card1 = { num: 0, numDisplay: "?", suit: "?" };
     player.card2 = { num: 0, numDisplay: "?", suit: "?" };

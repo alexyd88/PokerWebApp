@@ -583,17 +583,21 @@ export interface PlayerGameInfo {
   buyIn: number;
   buyOut: number;
   timeoutCount: number; //number of consecutive timeouts
-  chipsWon: number;
+  chipsWon: number; // doesn't include bonuses
   chipsLost: number;
+  sevenDeuceNet: number;
   //net is stack - buyIn + buyOut
   probability: number;
 }
 
 export function playerGameInfoToString(player: Player, lobby: Lobby) {
   const gameInfo: PlayerGameInfo = player.gameInfo;
-  let s =
-    "stack: " +
-    gameInfo.stack +
+  let s = "stack: " + (gameInfo.stack - gameInfo.chipsWon);
+  if (gameInfo.chipsWon != 0) s += " + " + gameInfo.chipsWon;
+  if (gameInfo.sevenDeuceNet != 0)
+    s +=
+      " " + (gameInfo.sevenDeuceNet > 0 ? "+ " : "- ") + gameInfo.sevenDeuceNet;
+  s +=
     " | inPot: " +
     gameInfo.inPot +
     " | chips in pot: " +
@@ -676,6 +680,7 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     probability: -1,
     chipsWon: 0,
     chipsLost: 0,
+    sevenDeuceNet: 0,
   };
 }
 

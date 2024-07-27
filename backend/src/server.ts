@@ -45,6 +45,7 @@ import {
   sitRequest,
   TURN_TIME,
   updateChips,
+  NEW_CARD_TIME_ALLIN,
 } from "game_logic";
 import { z } from "zod";
 import { lobbies } from "./controllers/lobbies";
@@ -264,11 +265,9 @@ function requeueMessage(lobby: LobbyServer) {
       lobby.queuedMessage
     ) as unknown as number;
   } else if (lobby.queuedMessage.type == "newCommunityCards") {
-    let cardTime = NEW_CARD_TIME;
-    if (lobby.gameInfo.isAllIn) cardTime *= 2;
     lobby.timeout = setTimeout(
       sendCommunityCards,
-      cardTime,
+      lobby.gameInfo.isAllIn ? NEW_CARD_TIME_ALLIN : NEW_CARD_TIME,
       lobby,
       lobby.queuedMessage
     ) as unknown as number;
@@ -473,11 +472,9 @@ function handleMessage(message: Message) {
           cards: actionResult.cards,
         };
         clearTimeout(lobby.timeout);
-        let cardTime = NEW_CARD_TIME;
-        if (lobby.gameInfo.isAllIn) cardTime *= 2;
         lobby.timeout = setTimeout(
           sendCommunityCards,
-          cardTime,
+          lobby.gameInfo.isAllIn ? NEW_CARD_TIME_ALLIN : NEW_CARD_TIME,
           lobby,
           cardMessage
         ) as unknown as number;
