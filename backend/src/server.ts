@@ -47,6 +47,8 @@ import {
   updateChips,
   NEW_CARD_TIME_ALLIN,
   toggleSevenDeuce,
+  getStartError,
+  isHost,
 } from "game_logic";
 import { z } from "zod";
 import { lobbies } from "./controllers/lobbies";
@@ -175,9 +177,9 @@ function sendEndHand(lobby: LobbyServer) {
       date: Date.now(),
     });
   }
-  if (lobby.isEnding || getNumInPot(lobby) < 2) {
+  if (getStartError(lobby) != "success") {
+    console.log(getStartError(lobby));
     sendEndGame(lobby);
-    console.log("SENT END GAME");
     return;
   }
   sendReset(lobby);
@@ -315,18 +317,22 @@ function handleMessage(message: Message) {
       break;
     }
     case "setBigBlind": {
+      if (!isHost(message.playerId, lobby)) return;
       lobby.gameInfo.bigBlind = message.bigBlind;
       break;
     }
     case "straddleToggle": {
+      if (!isHost(message.playerId, lobby)) return;
       lobby.gameInfo.straddle = !lobby.gameInfo.straddle;
       break;
     }
     case "sevenDeuceToggle": {
+      if (!isHost(message.playerId, lobby)) return;
       toggleSevenDeuce(lobby);
       break;
     }
     case "setAnte": {
+      if (!isHost(message.playerId, lobby)) return;
       lobby.gameInfo.ante = message.ante;
       break;
     }
@@ -356,10 +362,12 @@ function handleMessage(message: Message) {
       break;
     }
     case "approveSitRequest": {
+      if (!isHost(message.playerId, lobby)) return;
       approveSitRequest(lobby, message.requestId);
       break;
     }
     case "pauseToggle": {
+      if (!isHost(message.playerId, lobby)) return;
       if (lobby.isPaused) {
         lobby.isPaused = false;
         requeueMessage(lobby);
@@ -370,10 +378,12 @@ function handleMessage(message: Message) {
       break;
     }
     case "endGameToggle": {
+      if (!isHost(message.playerId, lobby)) return;
       lobby.isEnding = !lobby.isEnding;
       break;
     }
     case "setHost": {
+      if (!isHost(message.playerId, lobby)) return;
       lobby.host = message.inGameId;
       break;
     }
@@ -388,17 +398,20 @@ function handleMessage(message: Message) {
       break;
     }
     case "leavingToggle": {
-      lobby.players[message.inGameId].gameInfo.leaving =
-        !lobby.players[message.inGameId].gameInfo.leaving;
+      const gameId: number = message.playerId.inGameId;
+      lobby.players[gameId].gameInfo.leaving =
+        !lobby.players[gameId].gameInfo.leaving;
       handleAutoAction(lobby, false);
       if (
-        lobby.players[message.inGameId].gameInfo.leaving &&
+        lobby.players[gameId].gameInfo.leaving &&
         !lobby.gameInfo.gameStarted
-      )
-        leaveSeat(lobby, message.inGameId);
+      ) {
+        leaveSeat(lobby, gameId);
+      }
       break;
     }
     case "kickingToggle": {
+      if (!isHost(message.playerId, lobby)) return;
       lobby.players[message.inGameId].gameInfo.kicking =
         !lobby.players[message.inGameId].gameInfo.kicking;
       handleAutoAction(lobby, false);
@@ -410,6 +423,7 @@ function handleMessage(message: Message) {
       break;
     }
     case "changeChips": {
+      if (!isHost(message.playerId, lobby)) return;
       lobby.players[message.inGameId].gameInfo.changeChips =
         message.changeChips;
       if (!lobby.gameInfo.gameStarted)

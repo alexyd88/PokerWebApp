@@ -144,7 +144,7 @@ export const messageSchema = z.discriminatedUnion("type", [
     .object({ type: z.literal("awayToggle"), inGameId: z.number().int() })
     .merge(messageCommonWithPlayerIdSchema),
   z
-    .object({ type: z.literal("leavingToggle"), inGameId: z.number().int() })
+    .object({ type: z.literal("leavingToggle") })
     .merge(messageCommonWithPlayerIdSchema),
   z
     .object({ type: z.literal("kickingToggle"), inGameId: z.number().int() })
@@ -206,7 +206,6 @@ export function validateMessage(
   }
   if (
     (message.type == "awayToggle" ||
-      message.type == "leavingToggle" ||
       message.type == "kickingToggle" ||
       message.type == "changeChips") &&
     !(message.inGameId in lobby.players)
@@ -814,16 +813,15 @@ export function getStartError(lobby: Lobby): string {
     console.log(numPlayers);
     return "Not enough players";
   }
-  if (lg.gameStarted) return "Already started";
-  let numCantAfford = numCantAffordBounty(lobby);
-  if (numCantAfford != 0)
-    return (
-      numCantAfford +
-      " players can't afford the current bounty, each player needs at least " +
-      (MIN_STACK_MINUS_BOUNTY_BIG_BLINDS * lobby.gameInfo.bigBlind +
-        getMaxBounty(lobby)) +
-      " chips"
-    );
+  // let numCantAfford = numCantAffordBounty(lobby);
+  // if (numCantAfford != 0)
+  //   return (
+  //     numCantAfford +
+  //     " players can't afford the current bounty, each player needs at least " +
+  //     (MIN_STACK_MINUS_BOUNTY_BIG_BLINDS * lobby.gameInfo.bigBlind +
+  //       getMaxBounty(lobby)) +
+  //     " chips"
+  //   );
   return "success";
 }
 
@@ -839,6 +837,7 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
   if (lobby.isPaused) return "Lobby is paused";
   switch (message.action) {
     case "start": {
+      if (lg.gameStarted) return "Already started";
       return getStartError(lobby);
       break;
     }
@@ -872,6 +871,10 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
       break;
   }
   return "success";
+}
+
+export function isHost(playerId: PlayerId, lobby: Lobby) {
+  return playerId.inGameId == lobby.host;
 }
 
 export interface ActionResult {

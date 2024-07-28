@@ -267,7 +267,6 @@ export function Lobby() {
           id: -1,
           type: "leavingToggle",
           playerId: playerId,
-          inGameId: playerId.inGameId,
           lobbyId: lobbyId,
           date: Date.now(),
         };
@@ -574,13 +573,14 @@ export function Lobby() {
         break;
       }
       case "leavingToggle": {
-        lobby.players[message.inGameId].gameInfo.leaving =
-          !lobby.players[message.inGameId].gameInfo.leaving;
+        const gameId: number = message.playerId.inGameId;
+        lobby.players[gameId].gameInfo.leaving =
+          !lobby.players[gameId].gameInfo.leaving;
         if (
-          lobby.players[message.inGameId].gameInfo.leaving &&
+          lobby.players[gameId].gameInfo.leaving &&
           !lobby.gameInfo.gameStarted
         ) {
-          leaveSeat(lobby, message.inGameId);
+          leaveSeat(lobby, gameId);
         }
         break;
       }
