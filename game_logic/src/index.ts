@@ -14,7 +14,11 @@ import {
 } from "./logic";
 import { strengthToString } from "./handEval";
 import { Socket } from "socket.io";
-import { SEATS_NUMBER, SIMULATE_SHOWDOWN_TIMES } from "./constants";
+import {
+  MIN_STACK_MINUS_BOUNTY_BIG_BLINDS,
+  SEATS_NUMBER,
+  SIMULATE_SHOWDOWN_TIMES,
+} from "./constants";
 import { z } from "zod";
 
 export * from "./logic";
@@ -570,6 +574,7 @@ export interface ChangeChips {
 
 export interface PlayerGameInfo {
   stack: number;
+  bountyStack: number; //should always have enough to guarantee payout in worst case
   chipsInPot: number;
   chipsThisRound: number;
   inPot: boolean;
@@ -591,6 +596,7 @@ export interface PlayerGameInfo {
   chipsWon: number; // doesn't include bonuses
   chipsLost: number;
   sevenDeuceNet: number;
+  hasStandUpButton: boolean;
   //net is stack - buyIn + buyOut
   probability: number;
 }
@@ -688,6 +694,7 @@ export function lobbyInfoToString(lobby: LobbyGameInfo) {
 export function createPlayerGameInfo(): PlayerGameInfo {
   return {
     stack: 0,
+    bountyStack: 0,
     buyIn: 0,
     buyOut: 0,
     chipsInPot: 0,
@@ -710,6 +717,7 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     chipsWon: 0,
     chipsLost: 0,
     sevenDeuceNet: 0,
+    hasStandUpButton: false,
   };
 }
 
@@ -766,6 +774,27 @@ export function getNumInPot(lobby: Lobby): number {
   return np;
 }
 
+export function getMaxBounty(lobby: Lobby): number {
+  let bounty = 0;
+  if (lobby.gameInfo.sevenDeuce) bounty += lobby.gameInfo.bigBlind;
+  return bounty;
+}
+
+export function numCantAffordBounty(lobby: Lobby): number {
+  let numCantAfford = 0;
+  for (let i = 0; i < SEATS_NUMBER; i++) {
+    if (lobby.seats[i] == -1) continue;
+    let player = lobby.players[lobby.seats[i]].gameInfo;
+    if (
+      player.stack <
+      MIN_STACK_MINUS_BOUNTY_BIG_BLINDS * lobby.gameInfo.bigBlind +
+        getMaxBounty(lobby)
+    )
+      numCantAfford++;
+  }
+  return numCantAfford;
+}
+
 export function noActionsLeft(lobby: Lobby): boolean {
   let np: number = 0;
   for (let i = 0; i < lobby.players.length; i++) {
@@ -776,6 +805,26 @@ export function noActionsLeft(lobby: Lobby): boolean {
     }
   }
   return np < 2;
+}
+
+export function getStartError(lobby: Lobby): string {
+  let lg = lobby.gameInfo;
+  let numPlayers = getNumInPot(lobby);
+  if (numPlayers < 2) {
+    console.log(numPlayers);
+    return "Not enough players";
+  }
+  if (lg.gameStarted) return "Already started";
+  let numCantAfford = numCantAffordBounty(lobby);
+  if (numCantAfford != 0)
+    return (
+      numCantAfford +
+      " players can't afford the current bounty, each player needs at least " +
+      (MIN_STACK_MINUS_BOUNTY_BIG_BLINDS * lobby.gameInfo.bigBlind +
+        getMaxBounty(lobby)) +
+      " chips"
+    );
+  return "success";
 }
 
 export function getErrorFromAction(lobby: Lobby, message: Message): string {
@@ -790,12 +839,7 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
   if (lobby.isPaused) return "Lobby is paused";
   switch (message.action) {
     case "start": {
-      let numPlayers = getNumInPot(lobby);
-      if (numPlayers < 2) {
-        console.log(numPlayers);
-        return "Not enough players";
-      }
-      if (lg.gameStarted) return "Already started";
+      return getStartError(lobby);
       break;
     }
     case "raise": {

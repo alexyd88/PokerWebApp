@@ -271,13 +271,6 @@ export function showdown(lobby: Lobby): ActionResult {
       let player = lobby.players[winners[j]].gameInfo;
       takeFromPot(lg, player, singlePayout);
       totalPayout -= singlePayout;
-      if (
-        player.chipsWon > player.chipsLost &&
-        isSevenDeuce(player) &&
-        lobby.gameInfo.sevenDeuce
-      ) {
-        handleSevenDeuce(lobby, winners[j]);
-      }
     }
 
     updateStackWithSevenDeuce(lobby);
@@ -297,6 +290,16 @@ export function showdown(lobby: Lobby): ActionResult {
         totalPayout = 0;
       }
       seat = findNext(lobby, seat);
+    }
+  }
+  for (let i = 0; i < lobby.players.length; i++) {
+    let player = lobby.players[i].gameInfo;
+    if (
+      player.chipsWon > player.chipsLost &&
+      isSevenDeuce(player) &&
+      lobby.gameInfo.sevenDeuce
+    ) {
+      handleSevenDeuce(lobby, i);
     }
   }
 
@@ -570,10 +573,10 @@ export function createDeck(): Card[] {
 }
 
 function rigDeck(deck: Card[]) {
-  deck[50].num = 7;
-  deck[50].numDisplay = "7";
-  deck[51].num = 2;
-  deck[51].numDisplay = "2";
+  deck[deck.length - 1].num = 7;
+  deck[deck.length - 1].numDisplay = "7";
+  deck[deck.length - 2].num = 2;
+  deck[deck.length - 2].numDisplay = "2";
 }
 
 export function shuffle(deck: Card[]) {
