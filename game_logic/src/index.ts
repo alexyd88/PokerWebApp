@@ -841,7 +841,6 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
   let curPlayer: PlayerGameInfo = createPlayerGameInfo();
   if (message.action != "start")
     curPlayer = lobby.players[lobby.seats[lg.curPlayer]].gameInfo;
-  if (lobby.isPaused) return "Lobby is paused";
   switch (message.action) {
     case "start": {
       if (lg.gameStarted) return "Already started";
@@ -877,6 +876,7 @@ export function getErrorFromAction(lobby: Lobby, message: Message): string {
       }
       break;
   }
+  if (lobby.isPaused) return "Lobby is paused";
   return "success";
 }
 

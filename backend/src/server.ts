@@ -229,7 +229,7 @@ function sendCommunityCards(lobby: LobbyServer, message: Message) {
 }
 
 function getAutoAction(
-  lobby: Lobby,
+  lobby: LobbyServer,
   player: Player,
   wasTimeout: boolean
 ): Message {
@@ -249,11 +249,17 @@ function getAutoAction(
     return;
   }
   let error: string = getErrorFromAction(lobby, message);
-  if (error) if (error != "success") message.action = "fold";
+  if (error == "Lobby is paused") {
+    return message;
+  }
+  if (error != "success") message.action = "fold";
   error = getErrorFromAction(lobby, message);
+  if (error == "Lobby is paused") {
+    return message;
+  }
   if (error != "success") {
-    console.log("how can this guy not do anything??", error);
-    return;
+    console.log("HOW CAN THIS GUY NOT DO ANYTHING?");
+    return null;
   }
   return message;
 }
@@ -262,13 +268,11 @@ function requeueMessage(lobby: LobbyServer) {
   clearTimeout(lobby.timeout);
   if (lobby.queuedMessage == null) return;
   if (lobby.queuedMessage.type == "action") {
-    if (lobby.queuedMessage.auto) handleMessage(lobby.queuedMessage);
-    else
-      lobby.timeout = setTimeout(
-        handleMessage,
-        TURN_TIME,
-        lobby.queuedMessage
-      ) as unknown as number;
+    lobby.timeout = setTimeout(
+      handleMessage,
+      TURN_TIME,
+      lobby.queuedMessage
+    ) as unknown as number;
   } else if (lobby.queuedMessage.type == "newCommunityCards") {
     lobby.timeout = setTimeout(
       sendCommunityCards,
@@ -297,7 +301,7 @@ function shouldAutoAction(lobby: Lobby) {
   );
 }
 
-function handleAutoAction(lobby: Lobby, wasTimeout: boolean) {
+function handleAutoAction(lobby: LobbyServer, wasTimeout: boolean) {
   if (!lobby.gameInfo.gameStarted) return;
   if (shouldAutoAction(lobby)) {
     handleMessage(
@@ -451,7 +455,8 @@ function handleMessage(message: Message) {
       if (
         (lobby.seats[lobby.gameInfo.curPlayer] != message.playerId.inGameId &&
           message.action != "start") ||
-        getErrorFromAction(lobby, message) != "success"
+        (getErrorFromAction(lobby, message) != "success" &&
+          getErrorFromAction(lobby, message) != "Lobby is paused")
       ) {
         console.log(
           lobby.seats[lobby.gameInfo.curPlayer],
