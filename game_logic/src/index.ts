@@ -383,6 +383,10 @@ export function sit(
 }
 
 export function leaveSeat(lobby: Lobby, inGameId: number) {
+  const player = lobby.players[inGameId];
+  player.gameInfo.buyOut += player.gameInfo.bountyStack + player.gameInfo.stack;
+  player.gameInfo.stack = 0;
+  player.gameInfo.bountyStack = 0;
   let seat = lobby.players[inGameId].gameInfo.seat;
   console.log("I LEFT", seat);
   lobby.players[inGameId].gameInfo.seat = -1;
@@ -596,7 +600,7 @@ export interface PlayerGameInfo {
   chipsLost: number;
   sevenDeuceNet: number;
   hasStandUpButton: boolean;
-  //net is stack - buyIn + buyOut
+  //net is stack + bountyStack  - buyIn + buyOut
   probability: number;
 }
 
@@ -610,7 +614,10 @@ export function playerGameInfoToString(player: Player, lobby: Lobby) {
     gameInfo.sevenDeuceNet
   );
   let s =
-    "stack: " + (gameInfo.stack - gameInfo.chipsWon - gameInfo.sevenDeuceNet);
+    "bounty stack: " +
+    gameInfo.bountyStack +
+    " stack: " +
+    (gameInfo.stack - gameInfo.chipsWon - gameInfo.sevenDeuceNet);
   if (gameInfo.chipsWon != 0) s += " + " + gameInfo.chipsWon;
   if (gameInfo.sevenDeuceNet != 0)
     s +=

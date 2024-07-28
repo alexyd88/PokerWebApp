@@ -249,7 +249,7 @@ function getAutoAction(
     return;
   }
   let error: string = getErrorFromAction(lobby, message);
-  if (error != "success") message.action = "fold";
+  if (error) if (error != "success") message.action = "fold";
   error = getErrorFromAction(lobby, message);
   if (error != "success") {
     console.log("how can this guy not do anything??", error);
@@ -262,11 +262,13 @@ function requeueMessage(lobby: LobbyServer) {
   clearTimeout(lobby.timeout);
   if (lobby.queuedMessage == null) return;
   if (lobby.queuedMessage.type == "action") {
-    lobby.timeout = setTimeout(
-      handleMessage,
-      TURN_TIME,
-      lobby.queuedMessage
-    ) as unknown as number;
+    if (lobby.queuedMessage.auto) handleMessage(lobby.queuedMessage);
+    else
+      lobby.timeout = setTimeout(
+        handleMessage,
+        TURN_TIME,
+        lobby.queuedMessage
+      ) as unknown as number;
   } else if (lobby.queuedMessage.type == "newCommunityCards") {
     lobby.timeout = setTimeout(
       sendCommunityCards,

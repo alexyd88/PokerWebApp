@@ -5,6 +5,7 @@ import {
   Card,
   cardsToString,
   ChangeChips,
+  getMaxBounty,
   leaveSeat,
   Lobby,
   LobbyGameInfo,
@@ -453,6 +454,7 @@ export function endHand(lobby: Lobby): number[] {
   lg.numInPot = 0;
   lg.board.length = 0;
   lg.totalPot = 0;
+  lg.sevenDeuce = lg.setSevenDeuce;
   lg.isAllIn = false;
   for (let i = 0; i < lobby.players.length; i++) {
     let player = players[i].gameInfo;
@@ -472,7 +474,13 @@ export function endHand(lobby: Lobby): number[] {
     player.card2 = { num: 0, numDisplay: "?", suit: "?" };
     for (let j = 0; j < SEATS_NUMBER; j++) if (lobby.seats[j] == i) seat = j;
     if (seat == -1) player.inPot = false;
-    if (player.stack == 0) player.leaving = true;
+    const bountyChange = Math.min(
+      getMaxBounty(lobby) - player.bountyStack,
+      player.stack
+    );
+    player.bountyStack += bountyChange;
+    player.stack -= bountyChange;
+    if (player.stack < lobby.gameInfo.bigBlind) player.away = true;
 
     if (player.timeoutCount >= 4) {
       if (!player.away) usersShouldToggleAway.push(i);
@@ -538,7 +546,6 @@ export function resetHand(lobby: Lobby, isClient: boolean, dealerChip: number) {
   lg.curRound = 0;
   lg.curRaise = lg.bigBlind;
   lg.numPlayedThisRound = 0;
-  lg.sevenDeuce = lg.setSevenDeuce;
   lobby.isEnding = false;
   if (!isClient) shuffleAndDeal(lobby);
 }
@@ -595,7 +602,6 @@ export function updateProbabilities(lobby: Lobby) {
   let deck: Card[] = createDeck();
   let remainingDeck: Card[] = [];
   let players = lobby.players;
-  console.log("PROB 1");
   for (let i = 0; i < 52; i++) {
     let shouldRemove = false;
     for (let j = 0; j < players.length; j++) {
@@ -617,7 +623,6 @@ export function updateProbabilities(lobby: Lobby) {
       remainingDeck.push(deck[i]);
     }
   }
-  console.log("PROB 2");
   shuffle(remainingDeck);
   let fullHands: Card[][] = [];
   for (let i = 0; i < players.length; i++) {
@@ -626,7 +631,6 @@ export function updateProbabilities(lobby: Lobby) {
       players[i].gameInfo.probability = 0;
     } else fullHands.push([]);
   }
-  console.log("PROB 3");
   const numCardsNeeded = 5 - lobby.gameInfo.board.length;
   for (let i = 0; i < SIMULATE_SHOWDOWN_TIMES; i++) {
     let newCardIndices = [];
@@ -646,8 +650,7 @@ export function updateProbabilities(lobby: Lobby) {
       if (fullHands[i].length == 7) bestHands.push(findBestHand(fullHands[i]));
       else bestHands.push([]);
     }
-    console.log("PROB 4");
-
+    let winners = 0;
     let cb = -1;
     for (let i = 0; i < bestHands.length; i++) {
       if (bestHands[i].length == 5) {
@@ -655,15 +658,25 @@ export function updateProbabilities(lobby: Lobby) {
           cb = i;
           continue;
         }
-        if (compareHands(bestHands[cb], bestHands[i]) == -1) cb = i;
+        let cH = compareHands(bestHands[cb], bestHands[i]);
+        if (cH == -1) cb = i;
       }
     }
-    if (cb != -1) players[cb].gameInfo.probability++;
+    for (let i = 0; i < bestHands.length; i++) {
+      if (bestHands[i].length == 5) {
+        if (cb == -1) {
+          cb = i;
+          continue;
+        }
+        let cH = compareHands(bestHands[cb], bestHands[i]);
+        if (cH == 0) winners++;
+      }
+    }
+    if (cb != -1 && winners == 1) players[cb].gameInfo.probability++;
     else {
       console.log("BRO WHAT");
     }
 
-    console.log("PROB 5");
     for (let i = 0; i < fullHands.length; i++) {
       fullHands[i].length = Math.min(fullHands[i].length, 7 - numCardsNeeded);
     }
