@@ -15,6 +15,7 @@ import {
   SEATS_NUMBER,
   ShowCards,
   SIMULATE_SHOWDOWN_TIMES,
+  STAND_UP_PAYOUT_PER_BUTTON_BIG_BLINDS,
 } from "./index";
 import { MersenneTwister19937, Random } from "random-js";
 
@@ -189,7 +190,42 @@ export function handleSevenDeuce(lobby: Lobby, index: number) {
 
 export function updateStackWithSevenDeuce(lobby: Lobby) {
   for (let i = 0; i < lobby.players.length; i++)
-    lobby.players[i].gameInfo.stack += lobby.players[i].gameInfo.sevenDeuceNet;
+    lobby.players[i].gameInfo.bountyStack +=
+      lobby.players[i].gameInfo.sevenDeuceNet;
+}
+
+export function updateStackWithStandUp(lobby: Lobby) {
+  for (let i = 0; i < lobby.players.length; i++)
+    lobby.players[i].gameInfo.bountyStack +=
+      lobby.players[i].gameInfo.standUpNet;
+}
+
+export function handleStandUp(lobby: Lobby) {
+  let payoutPerButton = 0;
+  for (let i = 0; i < lobby.players.length; i++) {
+    if (lobby.players[i].gameInfo.standUpButtons == 0) {
+      payoutPerButton +=
+        STAND_UP_PAYOUT_PER_BUTTON_BIG_BLINDS * lobby.gameInfo.bigBlind;
+      lobby.players[i].gameInfo.standUpNet -=
+        STAND_UP_PAYOUT_PER_BUTTON_BIG_BLINDS *
+        lobby.gameInfo.bigBlind *
+        (lobby.gameInfo.standUpPlayers - 1);
+    }
+  }
+  for (let i = 0; i < lobby.players.length; i++) {
+    lobby.players[i].gameInfo.standUpNet +=
+      payoutPerButton * lobby.players[i].gameInfo.standUpButtons;
+    lobby.players[i].gameInfo.inStandUp = false;
+  }
+  updateStackWithStandUp(lobby);
+  lobby.gameInfo.standUpButtons = 0;
+}
+
+function addButton(lobby: Lobby, id: number) {
+  lobby.players[id].gameInfo.standUpButtons++;
+  lobby.gameInfo.standUpButtons++;
+  if (lobby.gameInfo.standUpButtons == lobby.gameInfo.standUpPlayers - 1)
+    handleStandUp(lobby);
 }
 
 export function showdown(lobby: Lobby): ActionResult {
@@ -199,6 +235,7 @@ export function showdown(lobby: Lobby): ActionResult {
     let cardsShown: ShowCards[] = [];
     for (let i = 0; i < lobby.players.length; i++)
       if (lobby.players[i].gameInfo.inPot) {
+        if (lobby.gameInfo.standUp) addButton(lobby, i);
         if (
           isSevenDeuce(lobby.players[i].gameInfo) &&
           lobby.gameInfo.sevenDeuce
@@ -228,6 +265,7 @@ export function showdown(lobby: Lobby): ActionResult {
     let player = lobby.players[i].gameInfo;
     if (player.inPot) player.chipsLost = player.chipsInPot;
   }
+  let isMainPot = true;
   while (lg.numInPot > 0) {
     let bestHand: Card[] = [];
     let lowestAmt = -1;
@@ -265,6 +303,9 @@ export function showdown(lobby: Lobby): ActionResult {
         }
       }
     }
+    if (isMainPot && winners.length == 1) {
+      addButton(lobby, winners[0]);
+    }
     const singlePayout = Math.floor(totalPayout / winners.length);
     //console.log(totalPayout, winners.length, singlePayout);
     for (let j = 0; j < winners.length; j++) {
@@ -292,6 +333,7 @@ export function showdown(lobby: Lobby): ActionResult {
       }
       seat = findNext(lobby, seat);
     }
+    isMainPot = false;
   }
   for (let i = 0; i < lobby.players.length; i++) {
     let player = lobby.players[i].gameInfo;
@@ -446,6 +488,31 @@ export function setChips(player: PlayerGameInfo, chips: number) {
   updateChips(player);
 }
 
+export function splitStacks(lobby: Lobby) {
+  for (let i = 0; i < lobby.players.length; i++) {
+    let player = lobby.players[i].gameInfo;
+    const bountyChange = Math.min(
+      getMaxBounty(lobby) - player.bountyStack,
+      player.stack
+    );
+    player.bountyStack += bountyChange;
+    player.stack -= bountyChange;
+    console.log(player.bountyStack, "    ", getMaxBounty(lobby));
+  }
+}
+
+export function startStandUp(lobby: Lobby) {
+  lobby.gameInfo.standUpPlayers = 0;
+  for (let i = 0; i < lobby.players.length; i++) {
+    let player = lobby.players[i].gameInfo;
+    if (!player.away) {
+      player.inStandUp = true;
+      lobby.gameInfo.standUpPlayers++;
+    }
+    player.standUpButtons = 0;
+  }
+}
+
 export function endHand(lobby: Lobby): number[] {
   let players: Player[] = lobby.players;
   let lg = lobby.gameInfo;
@@ -455,6 +522,8 @@ export function endHand(lobby: Lobby): number[] {
   lg.board.length = 0;
   lg.totalPot = 0;
   lg.sevenDeuce = lg.setSevenDeuce;
+  let startedStandUp = !lg.standUp && lg.setStandUp;
+  lg.standUp = lg.setStandUp;
   lg.isAllIn = false;
   for (let i = 0; i < lobby.players.length; i++) {
     let player = players[i].gameInfo;
@@ -469,17 +538,12 @@ export function endHand(lobby: Lobby): number[] {
     player.chipsWon = 0;
     player.chipsLost = 0;
     player.sevenDeuceNet = 0;
+    player.standUpNet = 0;
     updateChips(player);
     player.card1 = { num: 0, numDisplay: "?", suit: "?" };
     player.card2 = { num: 0, numDisplay: "?", suit: "?" };
     for (let j = 0; j < SEATS_NUMBER; j++) if (lobby.seats[j] == i) seat = j;
     if (seat == -1) player.inPot = false;
-    const bountyChange = Math.min(
-      getMaxBounty(lobby) - player.bountyStack,
-      player.stack
-    );
-    player.bountyStack += bountyChange;
-    player.stack -= bountyChange;
     if (player.stack < lobby.gameInfo.bigBlind) player.away = true;
 
     if (player.timeoutCount >= 4) {
@@ -492,8 +556,14 @@ export function endHand(lobby: Lobby): number[] {
     }
     player.inPot = !isLeaving(player) && !player.away;
     player.startedInPot = player.inPot;
-    if (player.inPot) lobby.gameInfo.numInPot++;
+    if (player.inPot) {
+      lobby.gameInfo.numInPot++;
+    }
   }
+  if (startedStandUp) {
+    startStandUp(lobby);
+  }
+  splitStacks(lobby);
   return usersShouldToggleAway;
 }
 
@@ -689,4 +759,30 @@ export function toggleSevenDeuce(lobby: Lobby) {
   if (!lg.gameStarted) {
     lg.sevenDeuce = lg.setSevenDeuce;
   }
+}
+
+export function toggleStandUp(lobby: Lobby) {
+  let lg = lobby.gameInfo;
+  lg.setStandUp = !lg.setStandUp;
+  if (!lg.gameStarted) {
+    lg.standUp = lg.setStandUp;
+    startStandUp(lobby);
+    splitStacks(lobby);
+  }
+}
+
+export function handleJoin(lobby: Lobby, id: number) {
+  let player = lobby.players[id].gameInfo;
+  if (lobby.gameInfo.standUp) {
+    if (!player.inStandUp) {
+      player.inStandUp = true;
+      lobby.gameInfo.standUpPlayers++;
+    }
+  }
+  splitStacks(lobby);
+}
+
+export function toggleAway(lobby: Lobby, id: number) {
+  lobby.players[id].gameInfo.away = !lobby.players[id].gameInfo.away;
+  if (!lobby.players[id].gameInfo.away) handleJoin(lobby, id);
 }

@@ -49,6 +49,7 @@ import {
   toggleSevenDeuce,
   getStartError,
   isHost,
+  toggleStandUp,
 } from "game_logic";
 import { z } from "zod";
 import { lobbies } from "./controllers/lobbies";
@@ -177,7 +178,7 @@ function sendEndHand(lobby: LobbyServer) {
       date: Date.now(),
     });
   }
-  if (getStartError(lobby) != "success") {
+  if (lobby.isEnding || getStartError(lobby) != "success") {
     console.log(getStartError(lobby));
     sendEndGame(lobby);
     return;
@@ -335,6 +336,11 @@ function handleMessage(message: Message) {
     case "sevenDeuceToggle": {
       if (!isHost(message.playerId, lobby)) return;
       toggleSevenDeuce(lobby);
+      break;
+    }
+    case "standUpToggle": {
+      if (!isHost(message.playerId, lobby)) return;
+      toggleStandUp(lobby);
       break;
     }
     case "setAnte": {

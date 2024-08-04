@@ -4,6 +4,7 @@ import {
   endRound,
   findNext,
   getRandInt,
+  handleJoin,
   isLeaving,
   isValidRaise,
   raise,
@@ -18,6 +19,7 @@ import {
   MIN_STACK_MINUS_BOUNTY_BIG_BLINDS,
   SEATS_NUMBER,
   SIMULATE_SHOWDOWN_TIMES,
+  STAND_UP_PAYOUT_PER_BUTTON_BIG_BLINDS,
 } from "./constants";
 import { z } from "zod";
 
@@ -157,6 +159,9 @@ export const messageSchema = z.discriminatedUnion("type", [
     .merge(messageCommonWithPlayerIdSchema),
   z
     .object({ type: z.literal("sevenDeuceToggle") })
+    .merge(messageCommonWithPlayerIdSchema),
+  z
+    .object({ type: z.literal("standUpToggle") })
     .merge(messageCommonWithPlayerIdSchema),
   z
     .object({ type: z.literal("setAnte"), ante: z.number().int() })
@@ -380,6 +385,7 @@ export function sit(
   pg.inPot = false;
   pg.away = false;
   pg.timeoutCount = 0;
+  handleJoin(lobby, inGameId);
 }
 
 export function leaveSeat(lobby: Lobby, inGameId: number) {
@@ -425,7 +431,7 @@ export function getLedgerEntry(player: Player): string {
     " " +
     pg.buyOut +
     " " +
-    (pg.stack - pg.buyIn + pg.buyOut)
+    (pg.stack + pg.bountyStack - pg.buyIn + pg.buyOut)
   );
 }
 
@@ -465,6 +471,10 @@ export interface LobbyGameInfo {
   straddle: boolean;
   setSevenDeuce: boolean;
   sevenDeuce: boolean;
+  setStandUp: boolean;
+  standUp: boolean;
+  standUpButtons: number;
+  standUpPlayers: number;
   deck: Card[];
   board: Card[];
 }
@@ -520,6 +530,10 @@ export function createLobbyGameInfo(): LobbyGameInfo {
     setAllIn: false,
     sevenDeuce: false,
     setSevenDeuce: false,
+    standUp: false,
+    setStandUp: false,
+    standUpButtons: 0,
+    standUpPlayers: 0,
     deck: [],
     board: [],
   };
@@ -599,36 +613,39 @@ export interface PlayerGameInfo {
   chipsWon: number; // doesn't include bonuses
   chipsLost: number;
   sevenDeuceNet: number;
-  hasStandUpButton: boolean;
+  standUpNet: number;
+  standUpButtons: number;
+  inStandUp: boolean;
   //net is stack + bountyStack  - buyIn + buyOut
   probability: number;
 }
 
 export function playerGameInfoToString(player: Player, lobby: Lobby) {
   const gameInfo: PlayerGameInfo = player.gameInfo;
-  console.log(
-    "YPLAYERINFO",
-    player.playerId.inGameId,
-    gameInfo.stack,
-    gameInfo.chipsWon,
-    gameInfo.sevenDeuceNet
-  );
   let s =
     "bounty stack: " +
-    gameInfo.bountyStack +
-    " stack: " +
-    (gameInfo.stack - gameInfo.chipsWon - gameInfo.sevenDeuceNet);
-  if (gameInfo.chipsWon != 0) s += " + " + gameInfo.chipsWon;
+    (gameInfo.bountyStack - gameInfo.sevenDeuceNet - gameInfo.standUpNet);
   if (gameInfo.sevenDeuceNet != 0)
     s +=
       " " +
       (gameInfo.sevenDeuceNet > 0 ? "+ " : "- ") +
       Math.abs(gameInfo.sevenDeuceNet);
+  if (gameInfo.standUpNet != 0)
+    s +=
+      " " +
+      (gameInfo.standUpNet > 0 ? "+ " : "- ") +
+      Math.abs(gameInfo.standUpNet);
+  s += " stack: " + (gameInfo.stack - gameInfo.chipsWon);
+  if (gameInfo.chipsWon != 0) s += " + " + gameInfo.chipsWon;
   s +=
     " | inPot: " +
     gameInfo.inPot +
     " | chips in pot: " +
-    gameInfo.chipsThisRound +
+    gameInfo.chipsThisRound;
+  if (gameInfo.inStandUp)
+    s += " | stand up buttons: " + gameInfo.standUpButtons;
+
+  s +=
     " | " +
     gameInfo.card1.numDisplay +
     gameInfo.card1.suit +
@@ -669,6 +686,9 @@ export function gameModifiersToString(lobby: Lobby | null): string {
   s += "  seven deuce game: " + (lg.sevenDeuce ? "on" : "off");
   if (lg.sevenDeuce != lg.setSevenDeuce)
     s += lg.setSevenDeuce ? ", on next hand" : ", off next hand";
+  s += "  stand up game: " + (lg.standUp ? "on" : "off");
+  if (lg.standUp != lg.setStandUp)
+    s += lg.setStandUp ? ", on next hand" : ", off next hand";
 
   return s;
 }
@@ -723,7 +743,9 @@ export function createPlayerGameInfo(): PlayerGameInfo {
     chipsWon: 0,
     chipsLost: 0,
     sevenDeuceNet: 0,
-    hasStandUpButton: false,
+    standUpNet: 0,
+    standUpButtons: 0,
+    inStandUp: false,
   };
 }
 
@@ -783,6 +805,11 @@ export function getNumInPot(lobby: Lobby): number {
 export function getMaxBounty(lobby: Lobby): number {
   let bounty = 0;
   if (lobby.gameInfo.sevenDeuce) bounty += lobby.gameInfo.bigBlind;
+  if (lobby.gameInfo.standUp)
+    bounty +=
+      lobby.gameInfo.bigBlind *
+      STAND_UP_PAYOUT_PER_BUTTON_BIG_BLINDS *
+      (lobby.gameInfo.standUpPlayers - 1);
   return bounty;
 }
 
