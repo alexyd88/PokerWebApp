@@ -216,6 +216,7 @@ export function handleStandUp(lobby: Lobby) {
     lobby.players[i].gameInfo.standUpNet +=
       payoutPerButton * lobby.players[i].gameInfo.standUpButtons;
     lobby.players[i].gameInfo.inStandUp = false;
+    lobby.players[i].gameInfo.standUpButtons = 0;
   }
   updateStackWithStandUp(lobby);
   lobby.gameInfo.standUpButtons = 0;
@@ -459,7 +460,9 @@ export function isLeavingString(player: PlayerGameInfo): string {
   return "playing";
 }
 
-export function updateChips(player: PlayerGameInfo) {
+export function updateChips(player: PlayerGameInfo, lobby: Lobby) {
+  player.stack += player.bountyStack;
+  player.bountyStack = 0;
   const amt: number = player.changeChips.amount;
   switch (player.changeChips.modifier) {
     case "add": {
@@ -481,11 +484,12 @@ export function updateChips(player: PlayerGameInfo) {
     }
   }
   player.changeChips = { modifier: "add", amount: 0 };
+  splitStacks(lobby);
 }
 
-export function setChips(player: PlayerGameInfo, chips: number) {
+export function setChips(player: PlayerGameInfo, chips: number, lobby: Lobby) {
   player.changeChips = { modifier: "set", amount: chips };
-  updateChips(player);
+  updateChips(player, lobby);
 }
 
 export function splitStacks(lobby: Lobby) {
@@ -539,7 +543,7 @@ export function endHand(lobby: Lobby): number[] {
     player.chipsLost = 0;
     player.sevenDeuceNet = 0;
     player.standUpNet = 0;
-    updateChips(player);
+    updateChips(player, lobby);
     player.card1 = { num: 0, numDisplay: "?", suit: "?" };
     player.card2 = { num: 0, numDisplay: "?", suit: "?" };
     for (let j = 0; j < SEATS_NUMBER; j++) if (lobby.seats[j] == i) seat = j;
@@ -734,10 +738,6 @@ export function updateProbabilities(lobby: Lobby) {
     }
     for (let i = 0; i < bestHands.length; i++) {
       if (bestHands[i].length == 5) {
-        if (cb == -1) {
-          cb = i;
-          continue;
-        }
         let cH = compareHands(bestHands[cb], bestHands[i]);
         if (cH == 0) winners++;
       }

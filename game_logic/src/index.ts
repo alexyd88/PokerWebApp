@@ -377,7 +377,7 @@ export function sit(
   player.playerId.name = name;
   lobby.seats[seat] = inGameId;
   let pg = player.gameInfo;
-  setChips(pg, chips);
+  setChips(pg, chips, lobby);
   pg.seat = seat;
   pg.kicking = false;
   pg.leaving = false;
@@ -642,7 +642,7 @@ export function playerGameInfoToString(player: Player, lobby: Lobby) {
     gameInfo.inPot +
     " | chips in pot: " +
     gameInfo.chipsThisRound;
-  if (gameInfo.inStandUp)
+  if (lobby.gameInfo.standUp)
     s += " | stand up buttons: " + gameInfo.standUpButtons;
 
   s +=

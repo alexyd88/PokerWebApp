@@ -439,7 +439,7 @@ function handleMessage(message: Message) {
       lobby.players[message.inGameId].gameInfo.changeChips =
         message.changeChips;
       if (!lobby.gameInfo.gameStarted)
-        updateChips(lobby.players[message.inGameId].gameInfo);
+        updateChips(lobby.players[message.inGameId].gameInfo, lobby);
       break;
     }
     case "showMyCards": {
