@@ -501,7 +501,6 @@ export function splitStacks(lobby: Lobby) {
     );
     player.bountyStack += bountyChange;
     player.stack -= bountyChange;
-    console.log(player.bountyStack, "    ", getMaxBounty(lobby));
   }
 }
 
@@ -548,7 +547,7 @@ export function endHand(lobby: Lobby): number[] {
     player.card2 = { num: 0, numDisplay: "?", suit: "?" };
     for (let j = 0; j < SEATS_NUMBER; j++) if (lobby.seats[j] == i) seat = j;
     if (seat == -1) player.inPot = false;
-    if (player.stack < lobby.gameInfo.bigBlind) player.away = true;
+    if (player.stack <= 0) player.away = true;
 
     if (player.timeoutCount >= 4) {
       if (!player.away) usersShouldToggleAway.push(i);
