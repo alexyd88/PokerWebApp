@@ -1,0 +1,192 @@
+* {
+    /* outline: solid red 2px; */
+}
+
+/* body {
+    background-color: black;
+} */
+
+/* span, div, a {
+    color: white;
+} */
+
+div .button-base {
+    margin: 20px;
+    vertical-align: top;
+}
+
+.button-base {
+    color: rgb(128, 128, 128);
+    border-radius: 7px;
+    transition-duration: 0.3s;
+    cursor: pointer;
+    background-color: white;
+    border: 2px solid rgb(128, 128, 128);
+    overflow: hidden;
+    box-shadow: 0px 0px 15px 1px rgb(128, 128, 128);
+    height: 80px;
+    width: 160px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.3em;
+    position: relative;
+
+    &:hover:not(:disabled) {
+        color: white;
+        background-color: rgb(128, 128, 128);
+        box-shadow: 0px 0px 30px 3px rgb(128, 128, 128);
+    }
+
+    &::after {
+        display: inline-block;
+        content: "";
+        background-color: white;
+        border-radius: 7px;
+        height: 100%;
+        width: 150%;
+        opacity: 0;
+        left: -25%;
+        top: 0;
+        position: absolute;
+        z-index: 2;
+        transition: all 0.3s 0s, opacity 0.3s 0.1s;
+    }
+
+    &:not(:disabled):active::after {
+        left: 50%;
+        opacity: 0.8;
+        width: 0;
+        transition: all 0s 0s;
+    }
+
+    /* to disable with javascript: button.disabled = (boolean value) */
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+}
+
+
+.button-base.green-button {
+    color: rgb(0, 255, 0);
+    border: 2px solid rgb(0, 255, 0);
+    box-shadow: 0px 0px 15px 1px rgb(0, 255, 0);
+
+    &:hover:not(:disabled) {
+        color: white;
+        background-color: rgb(0, 255, 0);
+        box-shadow: 0px 0px 30px 3px rgb(0, 255, 0);
+    }
+}
+
+.button-base.red-button {
+    color: rgb(255, 0, 0);
+    border: 2px solid rgb(255, 0, 0);
+    box-shadow: 0px 0px 15px 1px rgb(255, 0, 0);
+
+    &:hover:not(:disabled) {
+        color: white;
+        background-color: rgb(255, 0, 0);
+        box-shadow: 0px 0px 30px 3px rgb(255, 0, 0);
+    }
+
+    &:active::after {
+        opacity: 0.5;
+    }
+}
+
+.button-base.white-button {
+    color: rgb(255, 255, 255);
+    border: 2px solid rgb(255, 255, 255);
+    box-shadow: 0px 0px 15px 1px rgb(255, 255, 255);
+
+    &:hover {
+        color: black;
+        background-color: rgb(255, 255, 255);
+        box-shadow: 0px 0px 30px 3px rgb(255, 255, 255);
+    }
+
+    &::after {
+        background-color: black;
+    }
+
+    &:active::after {
+        opacity: 0.2;
+    }
+}
+
+.cards-container {
+    /* outline: solid red 2px; */
+    height: 200px;
+    width: 300px;
+    position: relative;
+}
+
+.cards-container .text-display {
+    top: 50%;
+    left: 27%;
+    width: 70%;
+    height: 40%;
+    color: white;
+    background-color: gray;
+    border: 2px solid gray;
+    box-shadow: 0px 0px 10px 7px darkgray;
+    position: absolute;
+    border-radius: 7px;
+}
+
+.cards-container .text-display .name-text {
+    vertical-align: top;
+    color: white;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 110%;
+    text-align: center;
+    margin-left: 40%;
+    margin-top: 10%;
+}
+
+.cards-container .text-display .stack-text {
+    vertical-align: top;
+    color: white;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 70%;
+    text-align: center;
+    margin-left: 40%;
+    margin-top: -7%;
+}
+
+.cards-container .card-display {
+    width: 35%;
+    height: 70%;
+    background-color: gray;
+    border: 2px solid gray;
+    box-shadow: 0px 0px 5px 3px darkgray;
+    position: absolute;
+    border-radius: 7px;
+    z-index: 2;
+    margin-left: 12%;
+    margin-top: 15%;
+
+    &.card-left {
+        transform: rotate(-15deg) translate(-25%, -10%);
+        z-index: 3;
+    }
+
+    &.card-right {
+        transform: rotate(15deg) translate(25%, -10%);
+    }
+
+}
+
+.bet-enter-box {
+    margin-right: auto;
+    flex: 2 1 auto;
+    height: 80px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 30px;
+    background: transparent;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-bottom: 2px solid gray;
+    color: white;
+}
