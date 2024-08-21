@@ -528,6 +528,7 @@ export function endHand(lobby: Lobby): number[] {
   let startedStandUp = !lg.standUp && lg.setStandUp;
   lg.standUp = lg.setStandUp;
   lg.isAllIn = false;
+  splitStacks(lobby);
   for (let i = 0; i < lobby.players.length; i++) {
     let player = players[i].gameInfo;
     let seat: number = -1;
@@ -566,7 +567,6 @@ export function endHand(lobby: Lobby): number[] {
   if (startedStandUp) {
     startStandUp(lobby);
   }
-  splitStacks(lobby);
   return usersShouldToggleAway;
 }
 
