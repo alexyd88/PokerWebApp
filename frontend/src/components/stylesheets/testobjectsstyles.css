@@ -176,17 +176,3 @@ div .button-base {
     }
 
 }
-
-.bet-enter-box {
-    margin-right: auto;
-    flex: 2 1 auto;
-    height: 80px;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 30px;
-    background: transparent;
-    border-top: none;
-    border-left: none;
-    border-right: none;
-    border-bottom: 2px solid gray;
-    color: white;
-}
