@@ -11,6 +11,8 @@ export default defineConfig({
   // },
   plugins: [react()],
 
+  base: "https://alexyd88.github.io/PokerWebApp/",
+
   // build: {
   //   commonjsOptions: { include: [/game_logic/, /node_modules/] },
   //   // commonjsOptions: { },                               // Edit:
