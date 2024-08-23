@@ -7,7 +7,6 @@ export default function App() {
     <HelmetProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Home />} />
           <Route
             path="/lobby/:lobbyId"
             element={<Lobby />}
@@ -15,6 +14,7 @@ export default function App() {
             //   if (params.lobbyId != undefined) return getLobby(params.lobbyId);
             // }}
           />
+          <Route path="*" element={<Home />} />
         </Routes>
       </BrowserRouter>
     </HelmetProvider>
