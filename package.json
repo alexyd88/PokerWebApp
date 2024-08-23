@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "scripts": {
     "build": "npm run build --prefix game_logic",
     "dev": "npm run build && concurrently \"npm start --prefix backend\" \"npm run dev --prefix frontend\""

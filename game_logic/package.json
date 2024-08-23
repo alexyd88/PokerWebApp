@@ -2,9 +2,10 @@
   "name": "game_logic",
   "version": "1.0.0",
   "main": "dist/index.js",
+  "module": "dist-esm/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "npx tsc --build"
+    "build": "tsc && tsc --project tsconfig.esm.json"
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",
