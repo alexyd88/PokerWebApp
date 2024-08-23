@@ -6,8 +6,5 @@
   "devDependencies": {
     "concurrently": "^8.2.2"
   },
-  "dependencies": {
-    "random-js": "^2.1.0",
-    "zod": "^3.23.8"
-  }
+  "dependencies": {}
 }
