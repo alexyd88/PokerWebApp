@@ -1,0 +1,27 @@
+name: Build static website and push static files to gh-pages
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    name: Build static website and push static files to gh-pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+      - name: Build static website
+        run: |
+          npm ci --prefix frontend
+          npm run build --prefix frontend
+      - name: Push static files to gh-pages
+        run: |
+          cp -a .git frontend/dist/
+          cd frontend/dist/
+          touch .nojekyll
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan gh-pages
+          git add .
+          git commit -m "Deploy static website: $(TZ=UTC0 date +'%Y-%m-%dT%H:%M:%SZ')"
+          git push -uf origin gh-pages
