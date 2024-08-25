@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type {
@@ -43,7 +43,8 @@ import {
 import { io, Socket } from "socket.io-client";
 
 export function Lobby() {
-  const lobbyId = useParams().lobbyId;
+  let lobbyId = useLocation().hash;
+  if (lobbyId.length > 1) lobbyId = lobbyId.substring(1);
   const [reactLobby, setReactLobby] = useState<LobbyClient | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [reactPlayerId, setPlayerId] = useState<PlayerId | null>(null);
@@ -158,10 +159,8 @@ export function Lobby() {
             lobbyId: lobbyId,
             date: Date.now(),
             id: -1,
-            type: "sitRequest",
-            name: "YO",
-            seat: 10,
-            chips: -1,
+            type: "chat",
+            text: "HI",
           };
           socket?.emit("message", message);
         }
@@ -676,6 +675,7 @@ export function Lobby() {
       (response: { messages: Message[]; exists: boolean }) => {
         lobby.messages = response.messages;
         if (!response.exists) {
+          console.log("MY LOBBY IS", lobbyId);
           console.log("WHY NOT EXIST?", lobby.messages);
           navigate("/");
         }
@@ -701,10 +701,19 @@ export function Lobby() {
     setReactLobby(lobby);
   };
 
+  function createLobby() {
+    const socket = io("https://urchin-app-k7nvc.ondigitalocean.app");
+    socket.emit("createLobby", (response: { id: string }) => {
+      navigate("/PokerWebApp/#" + response.id);
+      lobbyId = response.id;
+    });
+  }
+
   useEffect(() => {
+    if (lobbyId == "") return;
+    console.log("GOT INTO LOBBY");
     const socket = io("https://urchin-app-k7nvc.ondigitalocean.app");
     socket.emit("joinLobby", lobbyId);
-    if (lobbyId == undefined) return;
     const pid = localStorage.getItem(lobbyId);
     console.log("LOCAL", pid);
     if (pid != null) {
@@ -732,7 +741,7 @@ export function Lobby() {
     });
     setSocket(socket);
     setReactLobby(lobby);
-  }, []);
+  }, [lobbyId]);
 
   useEffect(() => {
     function updateTimer() {
@@ -744,7 +753,9 @@ export function Lobby() {
     return () => clearInterval(interval);
   }, [lastActionTime, timer]);
 
-  return disconnected ? (
+  return lobbyId == "" ? (
+    <button onClick={createLobby}>Create Lobby</button>
+  ) : disconnected ? (
     <div>
       Disconnected, click here to reload{" "}
       <button onClick={reload}>reload</button>
