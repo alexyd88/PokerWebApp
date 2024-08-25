@@ -51,12 +51,11 @@ import {
 } from "game_logic";
 let lobbies = new Map<string, LobbyServer>();
 const SOCKET_PORT = 8080;
-const FRONTEND_ORIGIN = "https://alexyd88.github.io/";
 
 const server = createServer();
 const io = new Server(server, {
   cors: {
-    origin: FRONTEND_ORIGIN,
+    origin: "*",
   },
 });
 
