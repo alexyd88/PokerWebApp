@@ -8,7 +8,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route
-            path="/lobby/:lobbyId"
+            path="/PokerWebApp/lobby/:lobbyId"
             element={<Lobby />}
             // loader={async ({ params }) => {
             //   if (params.lobbyId != undefined) return getLobby(params.lobbyId);

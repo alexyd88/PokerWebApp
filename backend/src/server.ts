@@ -4,8 +4,6 @@
 
 import "module-alias/register";
 import mongoose, { Schema } from "mongoose";
-import app from "./app";
-import env from "./util/validateEnv";
 import { Server } from "socket.io";
 import { createServer } from "node:http";
 import type {
@@ -50,25 +48,16 @@ import {
   getStartError,
   isHost,
   toggleStandUp,
+  createLobbyServer,
 } from "game_logic";
-import { lobbies } from "./controllers/lobbies";
+let lobbies = new Map<string, LobbyServer>();
+const SOCKET_PORT = 3002;
+const FRONTEND_ORIGIN = "http://localhost:5173";
 
-const MONGODB_URI = env.MONGODB_URI;
-
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => {
-    console.log("Mongoose connected!");
-    app.listen(env.DATABASE_PORT, () => {
-      console.log(`Database server running on ${env.DATABASE_PORT}.`);
-    });
-  })
-  .catch(console.error);
-
-const server = createServer(app);
+const server = createServer();
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_ORIGIN,
+    origin: FRONTEND_ORIGIN,
   },
 });
 
@@ -573,6 +562,14 @@ io.on("connection", (socket) => {
       });
     }
   );
+  socket.on("createLobby", async (callback) => {
+    let lobby = createLobbyServer();
+    lobbies.set(lobby.id, lobby);
+    callback({
+      id: lobby.id,
+    });
+  });
+
   socket.on("joinLobby", (room: string) => {
     console.log("socket joined:", room);
     socket.join(room);
@@ -646,6 +643,6 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(env.SOCKET_PORT, () => {
-  console.log(`Socket server running on ${env.SOCKET_PORT}.`);
+server.listen(SOCKET_PORT, () => {
+  console.log(`Socket server running on ${SOCKET_PORT}.`);
 });
