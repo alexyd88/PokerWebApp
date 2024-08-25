@@ -4,7 +4,7 @@ import { io } from "socket.io-client";
 export function CreateLobby() {
   const navigate = useNavigate();
   const handleSubmit = () => {
-    const socket = io("localhost:8080");
+    const socket = io("https://urchin-app-k7nvc.ondigitalocean.app");
     socket.emit("createLobby", (response: { id: string }) => {
       navigate("/PokerWebApp/lobby/" + response.id);
     });

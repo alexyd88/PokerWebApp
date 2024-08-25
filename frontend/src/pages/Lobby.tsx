@@ -702,7 +702,7 @@ export function Lobby() {
   };
 
   useEffect(() => {
-    const socket = io("localhost:8080");
+    const socket = io("https://urchin-app-k7nvc.ondigitalocean.app");
     socket.emit("joinLobby", lobbyId);
     if (lobbyId == undefined) return;
     const pid = localStorage.getItem(lobbyId);
