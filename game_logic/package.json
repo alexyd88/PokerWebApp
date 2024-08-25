@@ -5,7 +5,9 @@
   "module": "dist-esm/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc && tsc --project tsconfig.esm.json"
+    "build": "tsc && tsc --project tsconfig.esm.json",
+    "buildForBackend": "tsc",
+    "buildForFrontend": "tsc --project tsconfig.esm.json"
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",
