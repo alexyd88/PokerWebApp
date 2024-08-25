@@ -704,7 +704,7 @@ export function Lobby() {
   function createLobby() {
     const socket = io("https://urchin-app-k7nvc.ondigitalocean.app");
     socket.emit("createLobby", (response: { id: string }) => {
-      navigate("/PokerWebApp/#" + response.id);
+      navigate("/#" + response.id);
       lobbyId = response.id;
     });
   }

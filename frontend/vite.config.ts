@@ -11,7 +11,7 @@ export default defineConfig({
   // },
   plugins: [react()],
 
-  base: "https://alexyd88.github.io/PokerWebApp/",
+  base: "http://clownpoker.net/",
 
   // build: {
   //   commonjsOptions: { include: [/game_logic/, /node_modules/] },

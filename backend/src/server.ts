@@ -57,6 +57,7 @@ function deleteOld() {
       Date.now() - lobby.messageList[lobby.messageList.length - 1].date >
       172800000
     ) {
+      console.log("deleting lobby " + key);
       lobbies.delete(key);
     }
   }
