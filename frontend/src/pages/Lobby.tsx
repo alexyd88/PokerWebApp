@@ -784,7 +784,11 @@ export function Lobby() {
           reactPlayerId.inGameId
         : "placeholder, join below"}
       {reactLobby?.messages.map((message, index) => {
-        return <div key={index}>{messageToString(message)}</div>;
+        return (
+          <div key={index}>
+            {message.type == "chat" ? messageToString(message) : ""}
+          </div>
+        );
       })}
       {reactLobby?.gameInfo.board != null
         ? cardsToString(reactLobby?.gameInfo.board)
