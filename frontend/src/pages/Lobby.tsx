@@ -754,7 +754,18 @@ export function Lobby() {
   }, [lastActionTime, timer]);
 
   return lobbyId == "" ? (
-    <button onClick={createLobby}>Create Lobby</button>
+    <div>
+      <div>
+        Create a poker lobby and send the link to your friends! Supports up to
+        10 players. Includes Texas Hold'em with optional modifiers: the
+        seven-deuce game and the modified stand up game. Supports all poker
+        functions: dealing, betting, timers, live chat, ledger, win
+        probabilities, etc.
+      </div>
+      <a href="https://github.com/alexyd88/PokerWebApp">Github</a>
+      <br></br>
+      <button onClick={createLobby}>Create Lobby</button>
+    </div>
   ) : disconnected ? (
     <div>
       Disconnected, click here to reload{" "}
