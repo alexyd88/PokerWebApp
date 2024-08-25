@@ -6,7 +6,7 @@ export function CreateLobby() {
   const handleSubmit = () => {
     const socket = io("localhost:3002");
     socket.emit("createLobby", (response: { id: string }) => {
-      navigate("/PokerWebApp/lobby/" + response.id);
+      navigate("/lobby/" + response.id);
     });
   };
 
