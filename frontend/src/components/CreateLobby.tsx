@@ -4,7 +4,7 @@ import { io } from "socket.io-client";
 export function CreateLobby() {
   const navigate = useNavigate();
   const handleSubmit = () => {
-    const socket = io("localhost:3002");
+    const socket = io("localhost:8080");
     socket.emit("createLobby", (response: { id: string }) => {
       navigate("/PokerWebApp/lobby/" + response.id);
     });

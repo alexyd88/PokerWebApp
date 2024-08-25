@@ -702,7 +702,7 @@ export function Lobby() {
   };
 
   useEffect(() => {
-    const socket = io("localhost:3002");
+    const socket = io("localhost:8080");
     socket.emit("joinLobby", lobbyId);
     if (lobbyId == undefined) return;
     const pid = localStorage.getItem(lobbyId);

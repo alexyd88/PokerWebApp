@@ -3,7 +3,6 @@
  */
 
 import "module-alias/register";
-import mongoose, { Schema } from "mongoose";
 import { Server } from "socket.io";
 import { createServer } from "node:http";
 import type {
@@ -51,7 +50,7 @@ import {
   createLobbyServer,
 } from "game_logic";
 let lobbies = new Map<string, LobbyServer>();
-const SOCKET_PORT = 3002;
+const SOCKET_PORT = 8080;
 const FRONTEND_ORIGIN = "http://localhost:5173";
 
 const server = createServer();
