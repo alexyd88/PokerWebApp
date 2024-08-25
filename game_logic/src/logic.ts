@@ -664,7 +664,7 @@ export function shuffle(deck: Card[]) {
     const j = getRandInt(i, deck.length);
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
-  rigDeck(deck);
+  //rigDeck(deck);
 }
 
 export function cardsEqual(card1: Card, card2: Card): boolean {

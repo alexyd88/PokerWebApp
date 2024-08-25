@@ -50,6 +50,20 @@ import {
   createLobbyServer,
 } from "game_logic";
 let lobbies = new Map<string, LobbyServer>();
+
+function deleteOld() {
+  for (const [key, lobby] of lobbies.entries()) {
+    if (
+      Date.now() - lobby.messageList[lobby.messageList.length - 1].date >
+      172800000
+    ) {
+      lobbies.delete(key);
+    }
+  }
+}
+
+setInterval(deleteOld, 3600000);
+
 const SOCKET_PORT = 8080;
 
 const server = createServer();
