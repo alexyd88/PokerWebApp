@@ -11,7 +11,7 @@ export default defineConfig({
   // },
   plugins: [react()],
 
-  base: "http://clownpoker.net/",
+  base: "https://clownpoker.net/",
 
   // build: {
   //   commonjsOptions: { include: [/game_logic/, /node_modules/] },
