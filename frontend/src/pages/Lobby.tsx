@@ -768,7 +768,8 @@ export function Lobby() {
     </div>
   ) : disconnected ? (
     <div>
-      Disconnected, click here to reload{" "}
+      This session has been disconnected because two tabs in the same browser cannot connect to the same game (for cheat prevention).
+      Consider using incognito or a different browser to test multiple users.{" "}
       <button onClick={reload}>reload</button>
     </div>
   ) : (
